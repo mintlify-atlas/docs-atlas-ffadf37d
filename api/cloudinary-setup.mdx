@@ -1,0 +1,214 @@
+---
+title: 'Cloudinary Integration'
+description: 'Configure and use Cloudinary for image storage'
+---
+
+## Overview
+
+The Dental Odontogram application uses Cloudinary as the image storage service for odontogram PNG files. Cloudinary provides reliable, scalable cloud-based image management with CDN delivery.
+
+## Environment Variables
+
+To integrate Cloudinary, you need to configure the following environment variables:
+
+<ParamField path="CLOUDINARY_CLOUD_NAME" type="string" required>
+  Your Cloudinary cloud name (found in your Cloudinary dashboard)
+</ParamField>
+
+<ParamField path="CLOUDINARY_API_KEY" type="string" required>
+  Your Cloudinary API key for authentication
+</ParamField>
+
+<ParamField path="CLOUDINARY_API_SECRET" type="string" required>
+  Your Cloudinary API secret for secure authentication
+</ParamField>
+
+### Setting Up Environment Variables
+
+Create a `.env.local` file in your project root:
+
+```bash
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+```
+
+<Warning>
+  Never commit your `.env.local` file to version control. Add it to your `.gitignore` file.
+</Warning>
+
+## Configuration
+
+The Cloudinary SDK is configured in the upload endpoint with the following settings:
+
+```javascript
+import { v2 as cloudinary } from 'cloudinary'
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+})
+```
+
+### Configuration Options
+
+- **cloud_name** - Identifies your Cloudinary account
+- **api_key** - Public key for API authentication
+- **api_secret** - Private key for secure authentication
+- **secure** - When set to `true`, uses HTTPS for all uploads and URLs
+
+## How Images Are Uploaded
+
+The upload process uses Cloudinary's upload stream API with custom options:
+
+```javascript
+const uploadOptions = {
+  resource_type: 'image',
+  format: 'png',
+  quality: 'auto:best',
+  public_id: `odontograms/${recordId}_${Date.now()}`,
+  folder: 'odontograms',
+  context: {
+    patient_record: recordId,
+    upload_date: new Date().toISOString(),
+    original_name: file.originalFilename,
+  },
+}
+
+const uploadResult = await new Promise((resolve, reject) => {
+  const uploadStream = cloudinary.uploader.upload_stream(
+    uploadOptions,
+    (error, result) => {
+      if (error) {
+        console.error('❌ Cloudinary error:', error)
+        reject(error)
+      } else {
+        resolve(result)
+      }
+    }
+  )
+  uploadStream.end(originalBuffer)
+})
+```
+
+### Upload Options Explained
+
+<ParamField path="resource_type" type="string" default="image">
+  Specifies the type of file being uploaded
+</ParamField>
+
+<ParamField path="format" type="string" default="png">
+  Forces the output format to PNG
+</ParamField>
+
+<ParamField path="quality" type="string" default="auto:best">
+  Automatically optimizes quality while maintaining visual fidelity
+</ParamField>
+
+<ParamField path="public_id" type="string">
+  Unique identifier for the image: `odontograms/{recordId}_{timestamp}`
+</ParamField>
+
+<ParamField path="folder" type="string" default="odontograms">
+  Organizes images into the 'odontograms' folder in Cloudinary
+</ParamField>
+
+<ParamField path="context" type="object">
+  Metadata attached to the image:
+  - `patient_record` - Airtable record ID
+  - `upload_date` - ISO timestamp
+  - `original_name` - Original filename
+</ParamField>
+
+## Upload Result
+
+After a successful upload, Cloudinary returns an object containing:
+
+```javascript
+{
+  public_id: 'odontograms/recABCDEF123456_1234567890',
+  secure_url: 'https://res.cloudinary.com/your-cloud/image/upload/v1234567890/odontograms/recABCDEF123456_1234567890.png',
+  url: 'http://res.cloudinary.com/your-cloud/image/upload/v1234567890/odontograms/recABCDEF123456_1234567890.png',
+  format: 'png',
+  width: 1200,
+  height: 800,
+  bytes: 245678,
+  // ... other metadata
+}
+```
+
+The `secure_url` is stored in Airtable as the image reference.
+
+## Getting Your Cloudinary Credentials
+
+1. **Sign up** for a free Cloudinary account at [cloudinary.com](https://cloudinary.com)
+2. **Navigate to Dashboard** - After logging in, you'll see your credentials
+3. **Copy credentials**:
+   - Cloud Name
+   - API Key
+   - API Secret
+4. **Add to environment variables** as shown above
+
+## Free Tier Limits
+
+Cloudinary's free tier includes:
+
+- 25 GB storage
+- 25 GB monthly bandwidth
+- 25,000 monthly transformations
+
+This is sufficient for most small to medium dental practices.
+
+## Error Handling
+
+The application validates Cloudinary credentials before attempting uploads:
+
+```javascript
+if (
+  !process.env.CLOUDINARY_CLOUD_NAME ||
+  !process.env.CLOUDINARY_API_KEY ||
+  !process.env.CLOUDINARY_API_SECRET
+) {
+  return res
+    .status(500)
+    .json({ error: 'Cloudinary credentials not configured' })
+}
+```
+
+If an upload fails, the error is caught and returned:
+
+```javascript
+if (error) {
+  console.error('❌ Cloudinary error:', error)
+  reject(error)
+}
+```
+
+## Security Best Practices
+
+1. **Never expose API secrets** in client-side code
+2. **Use environment variables** for all credentials
+3. **Enable secure URLs** with `secure: true`
+4. **Rotate credentials** periodically
+5. **Monitor usage** in Cloudinary dashboard to detect unusual activity
+
+## Image Organization
+
+All odontogram images are stored in the `odontograms/` folder with the naming convention:
+
+```
+odontograms/{recordId}_{timestamp}.png
+```
+
+This ensures:
+- Easy identification of patient records
+- No naming conflicts
+- Chronological ordering of uploads
+
+## Next Steps
+
+- Learn how data is stored in [Airtable Integration](/api/airtable-integration)
+- Explore the [Upload API Endpoint](/api/upload-endpoint) documentation

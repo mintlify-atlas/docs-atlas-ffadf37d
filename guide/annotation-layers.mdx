@@ -1,0 +1,398 @@
+---
+title: 'Annotation Layers'
+description: 'Understanding the dual-layer system for pre-existing and required treatments'
+icon: 'layer-group'
+---
+
+## Layer System Overview
+
+The Dental Odontogram uses a dual-layer annotation system to distinguish between:
+
+1. **Pre-existing treatments** (Prestación Preexistente) - Treatments already present in the patient's mouth
+2. **Required treatments** (Prestación Requerida) - Treatments planned or needed
+
+This system allows dental professionals to maintain a complete treatment history while planning future work.
+
+## Layer Configuration
+
+### Layer Color Definitions
+
+Layers are defined with specific color codes in `jquery.odontogram.js`:
+
+```javascript
+// Color definitions for layers
+var LAYER_COLORS = {
+  pre: '#FF0000',  // Red for pre-existing
+  req: '#0066FF',  // Blue for required
+}
+
+// Current layer - defaults to pre-existing
+var CURRENT_ANNOTATION_LAYER = 'pre'
+```
+
+### Layer Application Logic
+
+```javascript
+// Helper function to determine if treatment should use layer colors
+function shouldUseLayerColor(treatmentName) {
+  return !PATHOLOGY_TREATMENTS.includes(treatmentName)
+}
+
+// Helper function to get color for treatment
+function getColorForTreatment(treatmentName, layer) {
+  if (shouldUseLayerColor(treatmentName)) {
+    return LAYER_COLORS[layer] || '#000'
+  }
+  return '#000'  // Default color for pathologies
+}
+```
+
+## Switching Between Layers
+
+### User Interface
+
+The layer selector is located above the odontogram canvas:
+
+```html
+<div class="prestacion-selector">
+  <h3>Tipo de Prestación</h3>
+  <div class="radio-group">
+    <input type="radio" id="layer-pre" name="annotation-layer" 
+           value="pre" checked>
+    <label for="layer-pre" class="layer-label pre-existing">
+      <span class="layer-indicator pre"></span>
+      Prestación Preexistente
+    </label>
+    
+    <input type="radio" id="layer-req" name="annotation-layer" 
+           value="req">
+    <label for="layer-req" class="layer-label required">
+      <span class="layer-indicator req"></span>
+      Prestación Requerida
+    </label>
+  </div>
+</div>
+```
+
+### Event Handler
+
+Layer changes are handled in `dental-app.js`:
+
+```javascript
+// Layer toggle handlers for dual-layer system
+$('input[name="annotation-layer"]').on('change', function() {
+  currentAnnotationLayer = $(this).val()
+  if (typeof CURRENT_ANNOTATION_LAYER !== 'undefined') {
+    CURRENT_ANNOTATION_LAYER = currentAnnotationLayer
+  }
+  updateLayerUI()
+  console.log('🔄 Annotation layer switched to:', currentAnnotationLayer)
+})
+```
+
+### Layer UI Update
+
+```javascript
+function updateLayerUI() {
+  const descriptionElement = document.getElementById('layer-description-text')
+  if (descriptionElement) {
+    if (currentAnnotationLayer === 'pre') {
+      descriptionElement.innerHTML = 
+        'Nuevas anotaciones se marcarán como <strong>pre-existentes</strong> en rojo'
+    } else {
+      descriptionElement.innerHTML = 
+        'Nuevas anotaciones se marcarán como <strong>requeridas</strong> en azul'
+    }
+  }
+}
+```
+
+## Color Coding System
+
+### Pre-existing Layer (Red)
+
+<Card title="Prestación Preexistente" icon="circle" iconType="solid" color="#FF0000">
+  **Color**: Red (`#FF0000`)
+  
+  **Purpose**: Mark treatments that already exist in the patient's mouth
+  
+  **Use Cases**:
+  - Recording existing fillings during initial examination
+  - Documenting previously placed crowns
+  - Noting existing root canal treatments
+  - Marking old restorations
+</Card>
+
+### Required Layer (Blue)
+
+<Card title="Prestación Requerida" icon="circle" iconType="solid" color="#0066FF">
+  **Color**: Blue (`#0066FF`)
+  
+  **Purpose**: Mark treatments that are needed or planned
+  
+  **Use Cases**:
+  - Planning new fillings for detected caries
+  - Marking teeth requiring extraction
+  - Scheduling future crown placements
+  - Treatment plan development
+</Card>
+
+## Layer Storage in Treatments
+
+Each treatment object stores its layer:
+
+```javascript
+function COF(vertices, options) {
+  this.name = 'COF'
+  // Store the layer when treatment is created
+  this.layer = options && options.layer 
+    ? options.layer 
+    : CURRENT_ANNOTATION_LAYER
+  this.options = $.extend({
+    font: 'bold 16px Arial',
+    color: getColorForTreatment('COF', this.layer)
+  }, options)
+  return this
+}
+```
+
+## Layer Display in Notes
+
+The notes section separates treatments by layer:
+
+```javascript
+// Filter treatments for pre-existing layer
+const preExistentes = prestacionTreatments.filter(
+  (t) => t.layer === 'pre'
+)
+
+// Filter treatments for required layer  
+const requeridas = prestacionTreatments.filter(
+  (t) => t.layer === 'req' || !t.layer
+)
+
+// Display pre-existing treatments in red
+if (preExistentes.length > 0) {
+  html += `<div class="prestaciones-section pre-existentes">`
+  html += `<h5 style="color: #FF0000;">Prestaciones Preexistentes:</h5>`
+  // ... render treatments ...
+  html += `</div>`
+}
+
+// Display required treatments in blue
+if (requeridas.length > 0) {
+  html += `<div class="prestaciones-section requeridas">`
+  html += `<h5 style="color: #0066FF;">Prestaciones Requeridas:</h5>`
+  // ... render treatments ...
+  html += `</div>`
+}
+```
+
+## Layer Export Format
+
+Layers are preserved in JSON export:
+
+```javascript
+const exportData = {
+  fecha: '2026-03-03',
+  nombre: 'PACIENTE',
+  piezas: [
+    {
+      pieza: '16',
+      condiciones: [],
+      prestacion_preexistente: [
+        'Obturación - Cara/s: Oclusal'
+      ],
+      prestacion_requerida: [
+        'Corona'
+      ],
+      notas: 'Planning crown for existing filling'
+    }
+  ]
+}
+```
+
+<CodeGroup>
+```json Pre-existing Example
+{
+  "pieza": "16",
+  "prestacion_preexistente": [
+    "Obturación - Cara/s: Oclusal, Mesial",
+    "Tratamiento de Conducto"
+  ],
+  "prestacion_requerida": [],
+  "notas": "Large existing filling from 2020"
+}
+```
+
+```json Required Example  
+{
+  "pieza": "26",
+  "prestacion_preexistente": [],
+  "prestacion_requerida": [
+    "Caries - Cara/s: Distal",
+    "Obturación - Cara/s: Distal"
+  ],
+  "notas": "Schedule filling for next visit"
+}
+```
+
+```json Mixed Layers Example
+{
+  "pieza": "36",
+  "prestacion_preexistente": [
+    "Obturación - Cara/s: Oclusal"
+  ],
+  "prestacion_requerida": [
+    "Corona"
+  ],
+  "notas": "Existing filling needs crown reinforcement"
+}
+```
+</CodeGroup>
+
+## Pathology Treatments
+
+Some treatments are classified as pathologies and don't use layer colors:
+
+```javascript
+// Define which treatments ignore layer colors (pathologies)
+var PATHOLOGY_TREATMENTS = [
+  'CARIES_UNTREATABLE',  // Untreatable caries
+]
+```
+
+These treatments:
+- Display in fixed colors (e.g., yellow for untreatable caries)
+- Still track layer data for export
+- Appear in "Condiciones" section instead of "Prestaciones"
+
+## Special Visual Cases
+
+### Fixed-Color Treatments
+
+Some treatments always display in specific colors on the odontogram, regardless of layer:
+
+<AccordionGroup>
+  <Accordion title="Missing Tooth (MIS)" icon="xmark">
+    ```javascript
+    function MIS(vertices, options) {
+      this.name = 'MIS'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({
+        strokeStyle: '#FF0000'  // ALWAYS RED in odontogram visual
+      }, options)
+    }
+    ```
+    
+    Visual: Always red `X`
+    
+    Data: Layer tracked (pre/req) for notes and export
+  </Accordion>
+
+  <Accordion title="Un-erupted Tooth (UNE)" icon="seedling">
+    ```javascript
+    function UNE(vertices, options) {
+      this.name = 'UNE'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({
+        strokeStyle: '#0066FF'  // ALWAYS BLUE in odontogram visual  
+      }, options)
+    }
+    ```
+    
+    Visual: Always blue `X`
+    
+    Data: Layer tracked (pre/req) for notes and export
+  </Accordion>
+
+  <Accordion title="Restoration (RES)" icon="tooth">
+    ```javascript
+    function RES(vertices, options) {
+      this.name = 'RES'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({
+        fillStyle: '#dc3545'  // ALWAYS RED in odontogram visual
+      }, options)
+    }
+    ```
+    
+    Visual: Always red filled triangle
+    
+    Data: Layer tracked (pre/req) for notes and export
+  </Accordion>
+</AccordionGroup>
+
+<Info>
+Even when treatments display in fixed colors for visual consistency, the layer system still categorizes them correctly in notes and data exports.
+</Info>
+
+## Use Cases by Layer
+
+### Pre-existing Layer Workflow
+
+1. **Patient arrives for examination**
+2. **Switch to red layer** (Prestación Preexistente)
+3. **Document existing treatments**:
+   - Mark existing fillings
+   - Note previous crowns
+   - Record root canals
+   - Identify old restorations
+4. **Treatments appear in red** on odontogram
+5. **Notes section** shows under "Prestaciones Preexistentes"
+
+### Required Layer Workflow
+
+1. **Examination reveals needed work**
+2. **Switch to blue layer** (Prestación Requerida)
+3. **Plan future treatments**:
+   - Mark caries for filling
+   - Plan crown placements
+   - Schedule extractions
+   - Design treatment sequence
+4. **Treatments appear in blue** on odontogram
+5. **Notes section** shows under "Prestaciones Requeridas"
+
+### Combined Workflow
+
+<Steps>
+  <Step title="Document pre-existing">
+    Switch to red layer and mark all existing treatments found during examination.
+  </Step>
+  <Step title="Switch to required">
+    Change to blue layer to begin treatment planning.
+  </Step>
+  <Step title="Plan treatments">
+    Add all needed treatments, which will appear in blue.
+  </Step>
+  <Step title="Review both layers">
+    Notes section shows both categories clearly separated by color.
+  </Step>
+  <Step title="Export complete data">
+    JSON export includes both pre-existing and required treatments with proper categorization.
+  </Step>
+</Steps>
+
+## Layer Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Start with Pre-existing" icon="clock-rotate-left">
+    Always begin by documenting existing treatments in red before planning new work in blue.
+  </Card>
+  
+  <Card title="Layer Switching" icon="right-left">
+    Switch layers before selecting treatments to ensure correct categorization.
+  </Card>
+  
+  <Card title="Visual Confirmation" icon="eye">
+    Check the layer indicator label shows the correct color before applying treatments.
+  </Card>
+  
+  <Card title="Notes Review" icon="clipboard-check">
+    Review the notes section to verify treatments are categorized correctly.
+  </Card>
+</CardGroup>
+
+<Warning>
+The layer setting applies to NEW treatments being added. Existing treatments retain their original layer assignment and must be deleted and re-added to change layers.
+</Warning>

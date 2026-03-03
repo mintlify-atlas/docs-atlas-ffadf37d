@@ -1,0 +1,303 @@
+---
+title: 'Plugin Initialization'
+description: 'How to initialize and configure the jQuery Odontogram plugin with canvas setup and options'
+---
+
+## Basic Initialization
+
+The jQuery Odontogram plugin is initialized using the `$.fn.odontogram()` method on a canvas element.
+
+### Method Signature
+
+```javascript
+$('#odontogram').odontogram('init', options)
+```
+
+<ParamField path="mode" type="string" required>
+  Must be `'init'` for initialization
+</ParamField>
+
+<ParamField path="options" type="object">
+  Configuration options for the odontogram
+  
+  <Expandable title="options properties">
+    <ParamField path="width" type="string" default="900px">
+      Canvas width (must include unit, e.g., '900px')
+    </ParamField>
+    
+    <ParamField path="height" type="string" default="450px">
+      Canvas height (must include unit, e.g., '450px')
+    </ParamField>
+    
+    <ParamField path="toothType" type="string" default="permanent">
+      Type of dentition to display:
+      - `'permanent'`: Adult teeth (18-48, default)
+      - `'primary'`: Children's teeth (51-85)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Canvas Setup Requirements
+
+### HTML Structure
+
+The plugin requires a `<canvas>` element with a unique ID:
+
+```html
+<canvas id="odontogram">
+  Your browser does not support canvas. Please update your browser.
+</canvas>
+```
+
+### jQuery and Plugin Dependencies
+
+Ensure jQuery and the odontogram plugin are loaded before initialization:
+
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="./jquery.odontogram.js"></script>
+```
+
+## Initialization Examples
+
+### Example 1: Adult Odontogram (Default)
+
+From `dental-app.js:164-214`:
+
+```javascript
+function initializeOdontogram(type) {
+  console.log('🦷 Initializing odontogram with type:', type)
+  
+  // Check if canvas element exists
+  const $canvas = $('#odontogram')
+  if ($canvas.length === 0) {
+    console.error('❌ Canvas element #odontogram not found')
+    return
+  }
+  
+  // Clear existing odontogram instance
+  $canvas.off('mousemove click').removeData('odontogram')
+  
+  // Configure odontogram options for adult teeth
+  const options = {
+    width: '900px',
+    height: '450px',
+    toothType: 'permanent'  // Adult teeth (18-48)
+  }
+  
+  // Initialize the odontogram
+  $canvas.odontogram('init', options)
+  
+  // Start with clean slate
+  $canvas.odontogram('clearAll')
+  $canvas.odontogram('setMode', ODONTOGRAM_MODE_DEFAULT)
+  
+  console.log('✅ Odontogram initialized successfully')
+}
+```
+
+### Example 2: Children's Odontogram
+
+From `dental-app.js:164-214` (modified):
+
+```javascript
+function initializeChildrenOdontogram() {
+  const $canvas = $('#odontogram')
+  
+  // Configure for children's teeth
+  const options = {
+    width: '900px',
+    height: '450px',
+    toothType: 'primary'  // Children's teeth (51-85)
+  }
+  
+  // Initialize
+  $canvas.odontogram('init', options)
+  
+  console.log('✅ Children\'s odontogram initialized')
+}
+```
+
+### Example 3: Larger Canvas
+
+```javascript
+function initializeLargeOdontogram() {
+  const options = {
+    width: '1200px',   // Larger width
+    height: '600px',   // Larger height
+    toothType: 'permanent'
+  }
+  
+  $('#odontogram').odontogram('init', options)
+}
+```
+
+## Switching Between Adult and Children Modes
+
+From `index.html:149-165` and `dental-app.js:848-860`:
+
+### HTML Radio Buttons
+
+```html
+<div class="dentition-selector">
+  <h3>Tipo de Odontograma</h3>
+  <div class="radio-group">
+    <input type="radio" 
+           id="dentition-adult" 
+           name="dentition-type" 
+           value="adult" 
+           checked>
+    <label for="dentition-adult">Adulto</label>
+    
+    <input type="radio" 
+           id="dentition-children" 
+           name="dentition-type" 
+           value="children">
+    <label for="dentition-children">Niño</label>
+  </div>
+</div>
+```
+
+### JavaScript Event Handler
+
+```javascript
+// Handle dentition type change
+$('input[name="dentition-type"]').on('change', function() {
+  const selectedType = $(this).val()
+  
+  if (selectedType !== currentOdontogramType) {
+    currentOdontogramType = selectedType
+    
+    // Reinitialize with new type
+    const options = {
+      width: '900px',
+      height: '450px',
+      toothType: selectedType === 'children' ? 'primary' : 'permanent'
+    }
+    
+    // Clear and reinitialize
+    $('#odontogram').off('mousemove click').removeData('odontogram')
+    $('#odontogram').odontogram('init', options)
+    
+    console.log('🔄 Switched to', 
+                selectedType === 'children' ? 'Primary' : 'Permanent', 
+                'dentition')
+  }
+})
+```
+
+## Initial State After Initialization
+
+After calling `init`, the odontogram:
+
+1. **Creates the Odontogram instance**
+   ```javascript
+   var instance = new Odontogram($this, settings)
+   $this.data('odontogram', instance)
+   ```
+
+2. **Sets canvas dimensions**
+   ```javascript
+   canvas.width = parseFloat(settings.width)
+   canvas.height = parseFloat(settings.height)
+   ```
+
+3. **Draws the background grid**
+   - Adult: 16 teeth per row (18-28, 38-48)
+   - Children: 10 teeth per row (55-65, 75-85)
+
+4. **Attaches event handlers**
+   ```javascript
+   $this.on('mousemove', _on_mouse_move)
+        .on('click', _on_mouse_click)
+   ```
+
+5. **Sets default mode**
+   ```javascript
+   this.mode = ODONTOGRAM_MODE_DEFAULT
+   ```
+
+## Accessing the Instance
+
+After initialization, you can access the Odontogram instance:
+
+```javascript
+const instance = $('#odontogram').data('odontogram')
+
+console.log(instance.teeth)      // Tooth coordinate mapping
+console.log(instance.geometry)   // Current treatments
+console.log(instance.mode)       // Current mode
+```
+
+## Common Initialization Patterns
+
+### Pattern 1: Initialize on Page Load
+
+From `dental-app.js:822-831`:
+
+```javascript
+async function initApp() {
+  console.log('Starting app initialization...')
+  
+  await loadDentalData()
+  initializeOdontogram('adult')  // Initialize with adult teeth
+  
+  console.log('App initialization completed')
+}
+
+// Initialize when document is ready
+$(document).ready(function() {
+  initApp()
+  setupEventHandlers()
+})
+```
+
+### Pattern 2: Reinitialize on Type Change
+
+```javascript
+function switchOdontogramType(newType) {
+  // Store current geometry
+  const currentGeometry = $('#odontogram').data('odontogram').geometry
+  
+  // Reinitialize
+  $('#odontogram').off('mousemove click').removeData('odontogram')
+  
+  const options = {
+    width: '900px',
+    height: '450px',
+    toothType: newType === 'children' ? 'primary' : 'permanent'
+  }
+  
+  $('#odontogram').odontogram('init', options)
+  
+  // Note: Geometry is cleared during reinitialization
+  // You would need to convert tooth numbers if preserving treatments
+}
+```
+
+## Error Handling
+
+The plugin includes built-in error handling:
+
+```javascript
+// Must be a canvas element
+if (this.prop('nodeName') !== 'CANVAS') {
+  throw Error('Odontogram must be valid `CANVAS`.')
+}
+
+// Cannot reinitialize
+if (instance != null) {
+  throw Error("can't reinitialize odontogram.")
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Methods" icon="code" href="/api/methods">
+    Learn about available plugin methods
+  </Card>
+  <Card title="Treatment Codes" icon="tooth" href="/api/treatment-codes">
+    Explore all treatment mode constants
+  </Card>
+</CardGroup>

@@ -1,0 +1,202 @@
+---
+title: Dual annotation layers
+description: Separate pre-existing and required treatments with color-coded layers
+---
+
+The Dental Odontogram uses a dual annotation layer system to distinguish between pre-existing conditions and required treatments. This allows dental professionals to document both what the patient already has and what needs to be done.
+
+## Overview
+
+The application supports two distinct annotation layers:
+
+<CardGroup cols={2}>
+  <Card title="Pre-existing layer" icon="circle" color="#FF0000">
+    Red color - Documents existing treatments and conditions
+  </Card>
+  <Card title="Required layer" icon="circle" color="#0066FF">
+    Blue color - Documents treatments that need to be performed
+  </Card>
+</CardGroup>
+
+## Layer configuration
+
+The layer colors are defined in `jquery.odontogram.js`:
+
+```javascript
+// Color definitions for layers
+var LAYER_COLORS = {
+  pre: '#FF0000', // Red for pre-existing
+  req: '#0066FF', // Blue for required
+}
+
+var CURRENT_ANNOTATION_LAYER = 'pre' // Default to pre-existing
+```
+
+## Switching between layers
+
+Users can switch between layers using radio buttons in the interface. The current layer is stored in the global `currentAnnotationLayer` variable:
+
+```javascript
+// From dental-app.js
+let currentAnnotationLayer = 'pre'
+
+// Layer switch handler
+document.querySelectorAll('input[name="annotation-layer"]').forEach((radio) => {
+  radio.addEventListener('change', function () {
+    currentAnnotationLayer = this.value
+    CURRENT_ANNOTATION_LAYER = this.value
+    console.log('🎨 Switched to layer:', currentAnnotationLayer)
+  })
+})
+```
+
+## How treatments use layers
+
+Most treatment shapes store and render using the layer color:
+
+```javascript
+// Example from AMF (Amalgam) shape class
+function AMF(vertices, options) {
+  this.name = 'AMF'
+  this.vertices = vertices
+  this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+  this.options = $.extend(
+    {
+      font: 'bold 16px Arial',
+      fillStyle: LAYER_COLORS[this.layer] || '#000',
+      textAlign: 'center',
+      textBaseline: 'middle',
+    },
+    options
+  )
+  return this
+}
+```
+
+### Layer-aware treatments
+
+These treatments change color based on the active layer:
+- Obturación (COF)
+- Obturación Amalgama (AMF)
+- Tratamiento de Conducto (RCT)
+- Surco Profundo (NVT)
+- Incrustación (INC)
+- Restauración Filtrada (REF)
+- Corona (POC)
+- Prótesis Removible (FMC)
+- Implante (IPX)
+- Puente (BRIDGE)
+- Ortodoncia (ORT)
+
+### Fixed-color treatments
+
+Some treatments maintain fixed colors regardless of layer (for visual clarity):
+- **Caries** - Yellow (#FFC107)
+- **Caries Incurable** - Red (pathology)
+- **Restauración** - Black (fixed visual)
+- **Diente Ausente (MIS)** - Red X
+- **Pieza No Erupcionada (UNE)** - Blue X
+
+## Data export with layers
+
+When exporting data, treatments are categorized by layer:
+
+```javascript
+// From exportOdontogramData in dental-app.js
+const preExistentes = prestacionTreatments.filter((t) => t.layer === 'pre')
+const requeridas = prestacionTreatments.filter((t) => t.layer === 'req' || !t.layer)
+
+// Process pre-existing treatments
+if (preExistentes.length > 0) {
+  const groupedPre = groupTreatmentsBySurface(preExistentes)
+  Object.values(groupedPre).forEach((treatment) => {
+    let treatmentText = treatment.nombre
+    if (treatment.usa_superficies && treatment.superficies.length > 0) {
+      treatmentText += ` - Cara/s: ${treatment.superficies.join(', ')}`
+    }
+    toothData.prestacion_preexistente.push(treatmentText)
+  })
+}
+
+// Process required treatments
+if (requeridas.length > 0) {
+  const groupedReq = groupTreatmentsBySurface(requeridas)
+  Object.values(groupedReq).forEach((treatment) => {
+    let treatmentText = treatment.nombre
+    if (treatment.usa_superficies && treatment.superficies.length > 0) {
+      treatmentText += ` - Cara/s: ${treatment.superficies.join(', ')}`
+    }
+    toothData.prestacion_requerida.push(treatmentText)
+  })
+}
+```
+
+This produces JSON output with separate arrays:
+
+```json
+{
+  "pieza": 11,
+  "condiciones": [],
+  "prestacion_preexistente": ["Obturación - Cara/s: vestibular"],
+  "prestacion_requerida": ["Corona"],
+  "notas": ""
+}
+```
+
+## Clinical workflow
+
+<Steps>
+  <Step title="Document existing treatments">
+    Select the **Pre-existente** layer (red) and mark all existing fillings, crowns, and other treatments the patient already has.
+  </Step>
+  
+  <Step title="Plan required treatments">
+    Switch to the **Requerido** layer (blue) and mark all treatments that need to be performed.
+  </Step>
+  
+  <Step title="Add notes">
+    Document any additional information in the per-tooth notes section.
+  </Step>
+  
+  <Step title="Export and save">
+    Generate the PNG report or export JSON data with both layers clearly categorized.
+  </Step>
+</Steps>
+
+## Visual distinction
+
+The color coding makes it immediately clear which treatments are existing versus planned:
+
+- **Red annotations** = Already done (pre-existing)
+- **Blue annotations** = Needs to be done (required)
+
+This visual separation is maintained in:
+- The canvas display
+- The notes section (with layer badges)
+- The PNG report
+- The JSON export
+
+## Best practices
+
+<Tip>
+  Always complete the pre-existing layer documentation before planning required treatments. This ensures accurate treatment planning.
+</Tip>
+
+<Note>
+  The layer information is preserved in the geometry data structure, so switching between layers won't lose any information.
+</Note>
+
+<Warning>
+  Some treatments (like pathologies) don't use layer colors for visual clarity. However, they still track which layer they were added to in the data export.
+</Warning>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Annotation layers guide" href="/guide/annotation-layers">
+    User guide for working with layers
+  </Card>
+  <Card title="JSON export" href="/features/json-export">
+    How layer data is exported
+  </Card>
+</CardGroup>

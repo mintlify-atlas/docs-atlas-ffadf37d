@@ -1,0 +1,352 @@
+---
+title: Installation
+description: Set up the Dental Odontogram application in your environment
+---
+
+## Requirements
+
+Before installing the Dental Odontogram application, ensure you have the following:
+
+### Web server
+
+The application must be served from a web server due to CORS restrictions when loading JSON data files. You can use:
+
+- **Python HTTP server** (recommended for development)
+  ```bash
+  python3 -m http.server
+  ```
+
+- **Node.js http-server**
+  ```bash
+  npm install -g http-server
+  http-server
+  ```
+
+- **Apache or nginx** (for production)
+
+### Browser requirements
+
+- Modern web browser with HTML5 Canvas support
+- JavaScript enabled
+- Minimum viewport width of 1024px recommended
+
+<Note>
+The application uses the HTML5 Canvas API. Older browsers may not be supported. The canvas element displays a fallback message: "Tu navegador no soporta canvas. Por favor actualiza tu navegador."
+</Note>
+
+## Frontend dependencies
+
+The application requires the following client-side dependencies:
+
+### jQuery
+
+The application uses jQuery 3.3.1 for DOM manipulation and event handling:
+
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+```
+
+<Tip>
+You can use a local copy of jQuery instead of the CDN for offline usage or better performance.
+</Tip>
+
+### Core files
+
+The following files are required in your project directory:
+
+1. **jquery.odontogram.js** - The odontogram plugin (based on Adhiana46's work)
+2. **dental-app.js** - Main application logic
+3. **patient-display.js** - Patient information handling
+4. **style.css** - Application styles
+5. **dientes_fdi_completo.json** - FDI tooth information data
+6. **index.html** - Main HTML page
+
+## Backend dependencies (optional)
+
+If you want to use the upload and integration features, you'll need a Node.js backend with the following packages:
+
+```json package.json
+{
+  "dependencies": {
+    "airtable": "^0.12.2",
+    "cloudinary": "^2.7.0",
+    "formidable": "^3.5.4",
+    "googleapis": "^159.0.0",
+    "node-fetch": "^3.3.2"
+  }
+}
+```
+
+### Install backend dependencies
+
+```bash
+npm install
+```
+
+<Note>
+The backend dependencies are only required if you plan to use the file upload and cloud storage features. The core odontogram functionality works without a backend.
+</Note>
+
+## File structure
+
+A typical Dental Odontogram installation has the following structure:
+
+```
+dental-odontogram/
+├── index.html                      # Main application page
+├── jquery.odontogram.js            # Odontogram plugin
+├── dental-app.js                   # Main application logic
+├── patient-display.js              # Patient info handling
+├── style.css                       # Application styles
+├── dientes_fdi_completo.json      # FDI tooth data
+├── package.json                    # Backend dependencies
+├── package-lock.json
+├── README.md                       # Project documentation
+├── functions.md                    # Function reference
+├── REFERENCIAS.md                  # Additional references
+├── api/                           # Backend API endpoints
+│   ├── upload-odontogram.js       # Upload handler
+│   └── patient.js                 # Patient data API
+└── assets/                        # Static assets (if any)
+```
+
+## Installation steps
+
+<Steps>
+  <Step title="Download or clone the repository">
+    Get the application files from your repository or download the source code.
+
+    ```bash
+    git clone <repository-url>
+    cd dental-odontogram
+    ```
+  </Step>
+
+  <Step title="Verify required files">
+    Ensure all core files are present:
+
+    ```bash
+    ls -1
+    ```
+
+    You should see:
+    - index.html
+    - jquery.odontogram.js
+    - dental-app.js
+    - patient-display.js
+    - style.css
+    - dientes_fdi_completo.json
+  </Step>
+
+  <Step title="Install backend dependencies (optional)">
+    If you plan to use the upload features, install the Node.js dependencies:
+
+    ```bash
+    npm install
+    ```
+  </Step>
+
+  <Step title="Start the web server">
+    Launch a web server in the project directory:
+
+    ```bash
+    python3 -m http.server 8000
+    ```
+
+    Or use your preferred web server.
+  </Step>
+
+  <Step title="Access the application">
+    Open your browser and navigate to:
+
+    ```
+    http://localhost:8000
+    ```
+
+    The odontogram interface should load successfully.
+  </Step>
+</Steps>
+
+## Serving the application
+
+### Development server
+
+For local development, use Python's built-in HTTP server:
+
+```bash
+python3 -m http.server 8000
+```
+
+This will serve the application on `http://localhost:8000`.
+
+### Production server
+
+For production deployment, configure a proper web server:
+
+#### Apache
+
+Add to your virtual host configuration:
+
+```apache
+<VirtualHost *:80>
+    ServerName dental-odontogram.example.com
+    DocumentRoot /var/www/dental-odontogram
+    
+    <Directory /var/www/dental-odontogram>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
+
+#### nginx
+
+Add to your nginx configuration:
+
+```nginx
+server {
+    listen 80;
+    server_name dental-odontogram.example.com;
+    root /var/www/dental-odontogram;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Proxy API requests to Node.js backend (if using)
+    location /api/ {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+## Configuration options
+
+The application can be configured by modifying parameters in `dental-app.js`:
+
+### Odontogram dimensions
+
+```javascript
+const options = {
+  width: '900px',      // Canvas width
+  height: '450px',     // Canvas height
+  toothType: 'permanent' // 'permanent' or 'primary'
+}
+```
+
+### PNG report settings
+
+Locate the `generateProfessionalPNG()` function in `dental-app.js` to customize:
+
+- PNG teeth limit
+- Column layout
+- Fonts and sizes
+- Odontogram scale
+- Header information
+
+```javascript
+// Example configuration inside generateProfessionalPNG()
+const canvas = document.createElement('canvas')
+canvas.width = 2480  // A4 width at 300 DPI
+canvas.height = 3508 // A4 height at 300 DPI
+
+const ctx = canvas.getContext('2d')
+ctx.fillStyle = '#ffffff'
+ctx.fillRect(0, 0, canvas.width, canvas.height)
+```
+
+### Patient name handling
+
+The application reads patient names from:
+
+1. DOM element `#patientName`
+2. URL parameters (`recordId` or `id`)
+
+You can customize this behavior in the `getPatientNameFromDOM()` function:
+
+```javascript
+function getPatientNameFromDOM() {
+  const patientNameElement = document.getElementById('patientName')
+  if (patientNameElement) {
+    const name = patientNameElement.textContent.trim()
+    if (name && name !== 'CARGANDO PACIENTE...' && name !== 'PACIENTE SIN NOMBRE') {
+      return name
+    }
+  }
+  return null
+}
+```
+
+## Backend integration
+
+To enable file uploads and cloud storage, you need to implement the backend endpoint:
+
+```javascript api/upload-odontogram.js
+// POST /api/upload-odontogram
+// Expected FormData:
+// - file: PNG blob
+// - recordId: Patient record ID
+// - fieldName: Airtable field name
+// - jsonData: Stringified JSON treatment data
+// - jsonFieldName: JSON field name in Airtable
+```
+
+<Warning>
+The backend endpoint implementation is not included in the core application. You'll need to create this based on your infrastructure (Airtable, Cloudinary, etc.).
+</Warning>
+
+See the [API Reference](/api-reference) for detailed implementation guidance.
+
+## Troubleshooting
+
+### Canvas not displaying
+
+If the odontogram canvas doesn't appear:
+
+1. Check browser console for errors
+2. Verify jQuery is loaded before `jquery.odontogram.js`
+3. Ensure canvas element has `id="odontogram"`
+4. Check that `dental-app.js` is loaded after the plugin
+
+### JSON data not loading
+
+If tooth information is missing:
+
+1. Verify `dientes_fdi_completo.json` is in the same directory
+2. Check browser console for CORS errors
+3. Ensure you're using a web server (not file:// protocol)
+4. Verify JSON file is valid and properly formatted
+
+### Treatment colors not showing
+
+If treatments appear in wrong colors:
+
+1. Check that annotation layer is selected
+2. Verify `LAYER_COLORS` configuration in `jquery.odontogram.js`
+3. Ensure treatments are being saved with layer information
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Learn how to use the application
+  </Card>
+  <Card
+    title="User guide"
+    icon="book"
+    href="/guide/interface"
+  >
+    Learn the odontogram interface
+  </Card>
+</CardGroup>

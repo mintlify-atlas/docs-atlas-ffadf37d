@@ -1,0 +1,446 @@
+---
+title: 'Shape Rendering Classes'
+description: 'Treatment shape classes for visual odontogram rendering'
+---
+
+## Overview
+
+The odontogram plugin uses specialized shape classes to render different dental treatments on the canvas. Each shape class implements a `render()` method that draws the treatment using HTML5 Canvas API.
+
+---
+
+## Class Architecture
+
+All shape classes follow a consistent pattern:
+
+```javascript
+function ShapeName(vertices, options) {
+  this.name = 'ShapeName'
+  this.vertices = vertices
+  this.layer = options?.layer || CURRENT_ANNOTATION_LAYER
+  this.options = $.extend(defaultOptions, options)
+  return this
+}
+
+ShapeName.prototype.render = function(ctx) {
+  // Canvas rendering logic
+}
+```
+
+### Common Properties
+
+<ParamField path="name" type="string">
+  Shape class identifier (e.g., "AMF", "CARIES", "POC")
+</ParamField>
+
+<ParamField path="vertices" type="array">
+  Array of coordinate objects with `x` and `y` properties defining the shape boundaries
+</ParamField>
+
+<ParamField path="layer" type="string">
+  Treatment layer: "pre" (pre-existing) or "req" (required). Determines color for layer-aware treatments.
+</ParamField>
+
+<ParamField path="options" type="object">
+  Rendering options like `fillStyle`, `strokeStyle`, `font`, `color`, etc.
+</ParamField>
+
+---
+
+## Layer-Aware Shapes
+
+These shapes use the layer system to display different colors:
+- **Red (#FF0000)**: Pre-existing treatments (`layer: 'pre'`)
+- **Blue (#0066FF)**: Required treatments (`layer: 'req'`)
+
+### AMF - Amalgam Filling
+
+Displays "/A" symbol on tooth surface.
+
+```javascript
+function AMF(vertices, options) {
+  this.name = 'AMF'
+  this.vertices = vertices
+  this.layer = options?.layer || CURRENT_ANNOTATION_LAYER
+  this.options = $.extend({
+    font: 'bold 16px Arial',
+    color: getColorForTreatment('AMF', this.layer)
+  }, options)
+  return this
+}
+
+AMF.prototype.render = function(ctx) {
+  var xs = this.vertices.map(v => v.x)
+  var ys = this.vertices.map(v => v.y)
+  var centerX = xs.reduce((a, b) => a + b, 0) / xs.length
+  var centerY = ys.reduce((a, b) => a + b, 0) / ys.length
+  
+  ctx.save()
+  ctx.font = this.options.font
+  ctx.fillStyle = this.options.color  // Red or blue based on layer
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('/A', centerX, centerY)
+  ctx.restore()
+}
+```
+
+### COF - Composite Filling
+
+Displays "/Ob" symbol on tooth surface.
+
+```javascript
+function COF(vertices, options) {
+  this.name = 'COF'
+  this.vertices = vertices
+  this.layer = options?.layer || CURRENT_ANNOTATION_LAYER
+  this.options = $.extend({
+    font: 'bold 16px Arial',
+    color: getColorForTreatment('COF', this.layer)
+  }, options)
+  return this
+}
+
+COF.prototype.render = function(ctx) {
+  // Similar to AMF, but displays '/Ob'
+  ctx.fillText('/Ob', centerX, centerY)
+}
+```
+
+### RCT - Root Canal Treatment
+
+Draws a filled triangle below the tooth.
+
+```javascript
+function RCT(vertices, options) {
+  this.name = 'RCT'
+  this.vertices = vertices
+  this.layer = options?.layer || CURRENT_ANNOTATION_LAYER
+  this.options = $.extend({
+    strokeStyle: getColorForTreatment('RCT', this.layer),
+    fillStyle: getColorForTreatment('RCT', this.layer),
+    height: 25
+  }, options)
+  return this
+}
+
+RCT.prototype.render = function(ctx) {
+  var x1 = parseFloat(this.vertices[0].x) + 1
+  var x2 = parseFloat(this.vertices[1].x) + 1
+  var y2 = parseFloat(this.vertices[1].y) + 1
+  var size = x2 - x1
+  var height = parseFloat(this.options.height)
+  
+  ctx.strokeStyle = this.options.strokeStyle  // Red or blue
+  ctx.fillStyle = this.options.fillStyle      // Red or blue
+  ctx.beginPath()
+  ctx.moveTo(x1 + size/4, y2)
+  ctx.lineTo(x1 + size/2, y2 + height)
+  ctx.lineTo(x2 - size/4, y2)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+}
+```
+
+### Other Layer-Aware Shapes
+
+- **SIL** - Displays "/S" symbol (Silicate filling)
+- **INC** - Displays "I" symbol (Inlay)
+- **NVT** - Displays "/Sp" symbol (Deep groove)
+- **REF** - Displays "/Rf" symbol (Leaked restoration)
+- **ORT** - Displays "~" symbol (Orthodontics)
+- **POC** - Draws circle (Porcelain crown)
+- **FMC** - Draws square outline (Metal crown)
+- **CFR** - Displays "=" symbol (Extraction)
+- **IPX** - Displays "IM" text (Implant)
+- **FRM_ACR** - Displays "P" text (Partial denture)
+- **PRE** - Displays "Pd" text (Periodontitis)
+- **BRIDGE** - Draws connecting line between teeth
+
+---
+
+## Fixed-Color Shapes
+
+These shapes always use specific colors regardless of layer.
+
+### CARIES - Treatable Caries
+
+Always blue (#6896ecff) filled polygon.
+
+```javascript
+function CARIES(vertices, options) {
+  this.name = 'CARIES'
+  this.vertices = vertices
+  this.layer = options?.layer || CURRENT_ANNOTATION_LAYER
+  this.options = $.extend({ 
+    fillStyle: '#6896ecff'  // Always blue
+  }, options)
+  return this
+}
+
+CARIES.prototype.render = function(ctx) {
+  ctx.fillStyle = this.options.fillStyle
+  ctx.beginPath()
+  
+  var vertices = this.vertices.concat([])
+  var fpos = vertices.shift()
+  ctx.moveTo(fpos.x + 1, fpos.y + 1)
+  
+  var pos
+  while (vertices.length > 0) {
+    pos = vertices.shift()
+    if (pos) {
+      ctx.lineTo(pos.x + 1, pos.y + 1)
+    }
+  }
+  ctx.lineTo(fpos.x + 1, fpos.y + 1)
+  ctx.closePath()
+  ctx.fill()
+}
+```
+
+### CARIES_UNTREATABLE - Untreatable Caries
+
+Always amber/yellow (#FFC107) filled polygon.
+
+```javascript
+function CARIES_UNTREATABLE(vertices, options) {
+  this.name = 'CARIES_UNTREATABLE'
+  this.vertices = vertices
+  this.options = $.extend({ 
+    fillStyle: '#FFC107'  // Always amber
+  }, options)
+  return this
+}
+
+// render() same as CARIES
+```
+
+### RES - Restoration
+
+Always red (#dc3545) filled polygon.
+
+```javascript
+function RES(vertices, options) {
+  this.name = 'RES'
+  this.vertices = vertices
+  this.layer = options?.layer || CURRENT_ANNOTATION_LAYER
+  this.options = $.extend({ 
+    fillStyle: '#dc3545'  // Always red in visual
+  }, options)
+  return this
+}
+```
+
+### MIS - Missing Tooth
+
+Always red (#FF0000) X mark.
+
+```javascript
+function MIS(vertices, options) {
+  this.name = 'MIS'
+  this.vertices = vertices
+  this.layer = options?.layer || CURRENT_ANNOTATION_LAYER
+  this.options = $.extend({
+    strokeStyle: '#FF0000'  // Always red
+  }, options)
+  return this
+}
+
+MIS.prototype.render = function(ctx) {
+  // Draws X through tooth
+  var lines = [
+    { x1: x1 + smallBoxSize * 0.5, y1: y1 - smallBoxSize/2,
+      x2: x1 + smallBoxSize * 1.5, y2: y2 + smallBoxSize/2 },
+    { x1: x1 + smallBoxSize * 1.5, y1: y1 - smallBoxSize/2,
+      x2: x1 + smallBoxSize * 0.5, y2: y2 + smallBoxSize/2 }
+  ]
+  
+  ctx.strokeStyle = this.options.strokeStyle
+  ctx.lineWidth = 4
+  // Draw both lines...
+}
+```
+
+### UNE - Unerupted Tooth
+
+Always blue (#0066FF) X mark.
+
+```javascript
+function UNE(vertices, options) {
+  this.name = 'UNE'
+  this.vertices = vertices
+  this.layer = options?.layer || CURRENT_ANNOTATION_LAYER
+  this.options = $.extend({
+    strokeStyle: '#0066FF'  // Always blue
+  }, options)
+  return this
+}
+
+// render() similar to MIS but blue
+```
+
+---
+
+## Polygon Base Class
+
+The fundamental shape class for filled areas.
+
+```javascript
+function Polygon(vertices, options) {
+  this.name = 'Polygon'
+  this.vertices = vertices
+  this.options = options
+  return this
+}
+
+Polygon.prototype.render = function(ctx) {
+  if (this.vertices.length <= 0) return
+  
+  ctx.fillStyle = this.options.fillStyle
+  ctx.beginPath()
+  
+  var vertices = this.vertices.concat([])
+  var fpos = vertices.shift()
+  ctx.moveTo(fpos.x, fpos.y)
+  
+  var pos
+  while (vertices.length > 0) {
+    pos = vertices.shift()
+    if (pos) {
+      ctx.lineTo(pos.x, pos.y)
+    }
+  }
+  ctx.lineTo(fpos.x, fpos.y)
+  ctx.closePath()
+  ctx.fill()
+}
+```
+
+---
+
+## Working with Layers
+
+### Layer Color Helper
+
+```javascript
+var LAYER_COLORS = {
+  pre: '#FF0000',  // Red for pre-existing
+  req: '#0066FF'   // Blue for required
+}
+
+function getColorForTreatment(treatmentName, layer) {
+  if (shouldUseLayerColor(treatmentName)) {
+    return LAYER_COLORS[layer] || '#000'
+  }
+  return '#000'  // Default for pathologies
+}
+
+function shouldUseLayerColor(treatmentName) {
+  return !PATHOLOGY_TREATMENTS.includes(treatmentName)
+}
+
+var PATHOLOGY_TREATMENTS = [
+  'CARIES_UNTREATABLE'  // Untreatable caries
+]
+```
+
+### Creating Layer-Aware Shapes
+
+```javascript
+// Current layer is set globally
+var CURRENT_ANNOTATION_LAYER = 'pre'  // or 'req'
+
+// When creating a shape, layer is passed in options
+var layerOptions = { layer: CURRENT_ANNOTATION_LAYER }
+var shape = new AMF(vertices, layerOptions)
+
+// Shape stores layer and uses it for color
+shape.layer      // 'pre' or 'req'
+shape.options.color  // '#FF0000' or '#0066FF'
+```
+
+---
+
+## Shape Conversion
+
+Shapes are converted from geometry objects using `convertGeom()`:
+
+```javascript
+function convertGeom(geometry, mode) {
+  var newGeometry
+  var layerOptions = { layer: CURRENT_ANNOTATION_LAYER }
+  
+  switch (mode) {
+    case ODONTOGRAM_MODE_AMF:
+      newGeometry = new AMF(geometry.vertices, layerOptions)
+      break
+    case ODONTOGRAM_MODE_COF:
+      newGeometry = new COF(geometry.vertices, layerOptions)
+      break
+    case ODONTOGRAM_MODE_CARIES:
+      newGeometry = new CARIES(geometry.vertices)  // No layer
+      break
+    // ...
+  }
+  
+  // Preserve position information
+  if (newGeometry.pos === undefined) {
+    newGeometry.pos = geometry.pos
+  }
+  
+  return newGeometry
+}
+```
+
+---
+
+## Rendering Process
+
+### Odontogram Redraw
+
+```javascript
+Odontogram.prototype.redraw = function() {
+  var ctx = this.context
+  
+  // Draw background
+  if (this.background) {
+    ctx.drawImage(this.background.image, 
+      this.background.x, this.background.y,
+      this.background.w, this.background.h)
+  }
+  
+  // Render all geometry shapes
+  for (var keyCoord in this.geometry) {
+    if (this.geometry.hasOwnProperty(keyCoord)) {
+      var shapes = this.geometry[keyCoord]
+      for (var i = 0; i < shapes.length; i++) {
+        if (shapes[i] && shapes[i].render) {
+          shapes[i].render(ctx)  // Call shape's render method
+        }
+      }
+    }
+  }
+}
+```
+
+### Vertices Structure
+
+Most shapes use vertices arrays:
+
+```javascript
+// Surface shapes (AMF, COF, CARIES, etc.)
+vertices = [
+  { x: 100, y: 50 },   // top-left
+  { x: 150, y: 50 },   // top-right
+  { x: 150, y: 100 },  // bottom-right
+  { x: 100, y: 100 }   // bottom-left
+]
+
+// Whole tooth shapes (RCT, MIS, UNE, etc.)
+vertices = [
+  { x: 100, y: 50 },   // x1, y1
+  { x: 150, y: 100 }   // x2, y2
+]
+```

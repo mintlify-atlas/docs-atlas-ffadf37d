@@ -1,0 +1,460 @@
+---
+title: 'Geometry System'
+description: 'Tooth geometry, surface mapping, and position system'
+---
+
+## Overview
+
+The geometry system maps canvas positions to anatomically correct tooth surfaces based on FDI notation. It handles the conversion between visual tooth regions and dental terminology.
+
+---
+
+## Tooth Structure
+
+Each tooth is divided into geometric regions stored in the `teeth` object:
+
+```javascript
+this.teeth[key] = {
+  num: 21,              // FDI tooth number
+  bigBoxSize: 50,       // Tooth box size in pixels
+  smallBoxSize: 25,     // Inner box size
+  x1: 100, y1: 50,      // Top-left corner
+  x2: 150, y2: 100,     // Bottom-right corner
+  cx: 125, cy: 75,      // Center point
+  
+  // Surface regions
+  top: { tl, tr, br, bl },      // Top surface vertices
+  right: { tl, tr, br, bl },    // Right surface vertices
+  bottom: { tl, tr, br, bl },   // Bottom surface vertices  
+  left: { tl, tr, br, bl },     // Left surface vertices
+  middle: { tl, tr, br, bl }    // Middle/occlusal surface vertices
+}
+```
+
+### Surface Vertices
+
+Each surface has 4 vertices defining its polygon:
+
+```javascript
+top: {
+  tl: { x: 100, y: 50 },   // top-left
+  tr: { x: 150, y: 50 },   // top-right
+  br: { x: 137, y: 62 },   // bottom-right
+  bl: { x: 112, y: 62 }    // bottom-left
+}
+```
+
+---
+
+## Position Mapping
+
+Canvas positions map to different anatomical surfaces depending on tooth location.
+
+### Canvas Position Codes
+
+```javascript
+const canvasPositionMap = {
+  T: 'top',       // or 'top'
+  B: 'bottom',    // or 'bottom'
+  L: 'left',      // or 'left'
+  R: 'right',     // or 'right'
+  M: 'middle'     // or 'middle'
+}
+```
+
+### Single Letter Codes
+
+Treatments store position as single letters:
+
+```javascript
+treatment.pos = 'T'      // Top surface
+treatment.pos = 'L-B'    // Left surface, bottom
+treatment.pos = '21-M'   // Tooth 21, middle surface
+```
+
+---
+
+## getCorrectSurfaceMapping(fdi)
+
+Maps canvas positions to anatomically correct surface names based on FDI tooth number.
+
+### Signature
+
+```javascript
+function getCorrectSurfaceMapping(fdi)
+```
+
+### Parameters
+
+<ParamField path="fdi" type="number | string" required>
+  FDI tooth number (11-18, 21-28, 31-38, 41-48 for adults; 51-55, 61-65, 71-75, 81-85 for primary)
+</ParamField>
+
+### Returns
+
+<ResponseField name="mapping" type="object">
+  Object mapping canvas positions to anatomical surface names
+  
+  **Properties:**
+  - `top` (string): Anatomical name for top position
+  - `bottom` (string): Anatomical name for bottom position
+  - `left` (string): Anatomical name for left position (mesial/distal)
+  - `right` (string): Anatomical name for right position (mesial/distal)
+  - `middle` (string): Anatomical name for middle position (oclusal/incisal)
+</ResponseField>
+
+### FDI Quadrant Rules
+
+#### Upper vs Lower Teeth
+
+```javascript
+const isUpperTooth = 
+  (fdiNumber >= 11 && fdiNumber <= 18) ||  // Upper right
+  (fdiNumber >= 21 && fdiNumber <= 28) ||  // Upper left
+  (fdiNumber >= 51 && fdiNumber <= 55) ||  // Primary upper right
+  (fdiNumber >= 61 && fdiNumber <= 65)     // Primary upper left
+
+const isLowerTooth = 
+  (fdiNumber >= 31 && fdiNumber <= 38) ||  // Lower left
+  (fdiNumber >= 41 && fdiNumber <= 48) ||  // Lower right
+  (fdiNumber >= 71 && fdiNumber <= 75) ||  // Primary lower left
+  (fdiNumber >= 81 && fdiNumber <= 85)     // Primary lower right
+```
+
+#### Base Mapping
+
+```javascript
+const baseMapping = {
+  top: isUpperTooth ? 'vestibular' : 'lingual',
+  bottom: isUpperTooth ? 'palatina' : 'vestibular',
+  middle: 'oclusal'  // Will be adjusted for incisors/canines
+}
+```
+
+### Mesial/Distal Orientation
+
+Mesial and distal surfaces are determined by quadrant:
+
+#### Right Quadrants (11-18, 41-48, 51-55, 81-85)
+
+```javascript
+// Mesial faces towards midline (right side)
+mesialSide = 'right'
+distalSide = 'left'
+```
+
+#### Left Quadrants (21-28, 31-38, 61-65, 71-75)
+
+```javascript
+// Mesial faces towards midline (left side)
+mesialSide = 'left'
+distalSide = 'right'
+```
+
+### Tooth Type Adjustments
+
+Incisors and canines use "incisal" instead of "oclusal":
+
+```javascript
+const toothInfo = getToothInfo(fdiNumber)
+if (toothInfo && 
+    (toothInfo.tipo.includes('incisivo') || 
+     toothInfo.tipo.includes('canino'))) {
+  baseMapping.middle = 'incisal'
+}
+```
+
+### Complete Implementation
+
+```javascript
+function getCorrectSurfaceMapping(fdi) {
+  const fdiNumber = parseInt(fdi)
+  
+  // Determine if upper or lower tooth
+  const isUpperTooth = 
+    (fdiNumber >= 11 && fdiNumber <= 18) ||
+    (fdiNumber >= 21 && fdiNumber <= 28) ||
+    (fdiNumber >= 51 && fdiNumber <= 55) ||
+    (fdiNumber >= 61 && fdiNumber <= 65)
+  
+  // Base mapping for upper/lower
+  const baseMapping = {
+    top: isUpperTooth ? 'vestibular' : 'lingual',
+    bottom: isUpperTooth ? 'palatina' : 'vestibular',
+    middle: 'oclusal'
+  }
+  
+  // Determine mesial/distal based on quadrant
+  let mesialSide, distalSide
+  
+  if (
+    // Right quadrants
+    (fdiNumber >= 11 && fdiNumber <= 18) ||
+    (fdiNumber >= 41 && fdiNumber <= 48) ||
+    (fdiNumber >= 51 && fdiNumber <= 55) ||
+    (fdiNumber >= 81 && fdiNumber <= 85)
+  ) {
+    mesialSide = 'right'
+    distalSide = 'left'
+  } else if (
+    // Left quadrants  
+    (fdiNumber >= 21 && fdiNumber <= 28) ||
+    (fdiNumber >= 31 && fdiNumber <= 38) ||
+    (fdiNumber >= 61 && fdiNumber <= 65) ||
+    (fdiNumber >= 71 && fdiNumber <= 75)
+  ) {
+    mesialSide = 'left'
+    distalSide = 'right'
+  }
+  
+  // Assign mesial/distal
+  if (mesialSide && distalSide) {
+    baseMapping[mesialSide] = 'mesial'
+    baseMapping[distalSide] = 'distal'
+  }
+  
+  // Adjust for incisors and canines
+  const toothInfo = getToothInfo(fdiNumber)
+  if (toothInfo && 
+      (toothInfo.tipo.includes('incisivo') || 
+       toothInfo.tipo.includes('canino'))) {
+    baseMapping.middle = 'incisal'
+  }
+  
+  return baseMapping
+}
+```
+
+---
+
+## Mapping Examples
+
+### Upper Right Central Incisor (Tooth 11)
+
+```javascript
+getCorrectSurfaceMapping(11)
+// Returns:
+{
+  top: 'vestibular',      // Facing lips
+  bottom: 'palatina',     // Facing palate
+  right: 'mesial',        // Towards midline
+  left: 'distal',         // Away from midline
+  middle: 'incisal'       // Cutting edge
+}
+```
+
+### Upper Left First Molar (Tooth 26)
+
+```javascript
+getCorrectSurfaceMapping(26)
+// Returns:
+{
+  top: 'vestibular',      // Facing cheek
+  bottom: 'palatina',     // Facing palate
+  left: 'mesial',         // Towards midline
+  right: 'distal',        // Away from midline
+  middle: 'oclusal'       // Chewing surface
+}
+```
+
+### Lower Right Canine (Tooth 43)
+
+```javascript
+getCorrectSurfaceMapping(43)
+// Returns:
+{
+  top: 'lingual',         // Facing tongue
+  bottom: 'vestibular',   // Facing lips
+  right: 'mesial',        // Towards midline
+  left: 'distal',         // Away from midline
+  middle: 'incisal'       // Cutting edge
+}
+```
+
+### Lower Left Second Molar (Tooth 37)
+
+```javascript
+getCorrectSurfaceMapping(37)
+// Returns:
+{
+  top: 'lingual',         // Facing tongue
+  bottom: 'vestibular',   // Facing cheek
+  left: 'mesial',         // Towards midline
+  right: 'distal',        // Away from midline  
+  middle: 'oclusal'       // Chewing surface
+}
+```
+
+---
+
+## Surface Conversion Process
+
+### From Treatment Position to Anatomical Name
+
+```javascript
+// 1. Extract position code from treatment
+let surfaceCode = null
+if (treatment.pos.includes('-')) {
+  const parts = treatment.pos.split('-')
+  surfaceCode = parts[1]  // e.g., '21-M' → 'M'
+} else {
+  surfaceCode = treatment.pos  // e.g., 'T'
+}
+
+// 2. Convert to full canvas position
+const canvasPositionMap = {
+  T: 'top', B: 'bottom', L: 'left', R: 'right', M: 'middle'
+}
+const fullCanvasPosition = canvasPositionMap[surfaceCode]
+// 'M' → 'middle'
+
+// 3. Get correct mapping for this tooth
+const correctMapping = getCorrectSurfaceMapping(toothNum)
+// For tooth 21: { top: 'vestibular', left: 'mesial', middle: 'incisal', ... }
+
+// 4. Get anatomical surface name
+const anatomical = correctMapping[fullCanvasPosition]
+// 'middle' → 'incisal' (for tooth 21)
+```
+
+### Complete Example
+
+```javascript
+// Treatment on tooth 16, middle surface
+const treatment = {
+  name: 'COF',
+  pos: '16-M',
+  layer: 'pre'
+}
+
+const toothNum = 16
+const surfaceCode = 'M'
+const fullCanvasPosition = 'middle'
+const correctMapping = getCorrectSurfaceMapping(16)
+// { top: 'vestibular', bottom: 'palatina', 
+//   right: 'mesial', left: 'distal', middle: 'oclusal' }
+
+const anatomical = correctMapping['middle']
+// → 'oclusal'
+
+// Display: "Obturación - Cara/s: Oclusal"
+```
+
+---
+
+## Tooth Geometry Creation
+
+### Side Teeth (Molars, Premolars)
+
+Most teeth use the standard 5-surface layout:
+
+```javascript
+Odontogram.prototype._sideTeeth = function(
+  ctx, numbers, bigBoxSize, smallBoxSize, xpos, ypos
+) {
+  // Draw small box in center
+  ctx.rect(
+    xpos + smallBoxSize/2,
+    ypos + smallBoxSize/2,
+    smallBoxSize,
+    smallBoxSize
+  )
+  
+  // Draw diagonal lines to corners
+  // Creates 5 regions: top, right, bottom, left, middle
+  
+  // Store tooth geometry
+  this.teeth[key] = {
+    num: toothNum,
+    top: { /* vertices */ },
+    right: { /* vertices */ },
+    bottom: { /* vertices */ },
+    left: { /* vertices */ },
+    middle: { /* vertices */ }
+  }
+}
+```
+
+### Center Teeth (Incisors, Canines)
+
+Incisors and canines use a modified 4-surface layout:
+
+```javascript
+Odontogram.prototype._centerTeeth = function(
+  ctx, numbers, bigBoxSize, smallBoxSize, xpos, ypos
+) {
+  // Draw horizontal line (no middle box)
+  ctx.rect(
+    xpos + smallBoxSize/2 + 3,
+    ypos + smallBoxSize - 3,
+    smallBoxSize - 6,
+    0  // Height of 0 = just a line
+  )
+  
+  // Creates 4 regions: top, right, bottom, left
+  // (No middle region - uses incisal edge instead)
+}
+```
+
+---
+
+## Geometry Storage
+
+Treatments are stored in the odontogram's geometry object:
+
+```javascript
+this.geometry = {
+  '100:50;150:100;125:75': [  // Key from tooth coordinates
+    {
+      name: 'AMF',
+      pos: 'T',
+      layer: 'pre',
+      vertices: [/* array of {x, y} */],
+      render: function(ctx) { /* ... */ }
+    },
+    {
+      name: 'COF', 
+      pos: 'M',
+      layer: 'req',
+      vertices: [/* ... */],
+      render: function(ctx) { /* ... */ }
+    }
+  ]
+}
+```
+
+### Key Format
+
+```javascript
+const key = x1 + ':' + y1 + ';' + x2 + ':' + y2 + ';' + cx + ':' + cy
+// '100:50;150:100;125:75'
+```
+
+---
+
+## Surface Name Reference
+
+### Spanish Terms
+
+| Spanish | English | Description |
+|---------|---------|-------------|
+| Vestibular | Buccal/Labial | Facing cheek or lips |
+| Palatina | Palatal | Facing palate (upper) |
+| Lingual | Lingual | Facing tongue (lower) |
+| Mesial | Mesial | Towards midline |
+| Distal | Distal | Away from midline |
+| Oclusal | Occlusal | Chewing surface (molars/premolars) |
+| Incisal | Incisal | Cutting edge (incisors/canines) |
+
+### Canvas to Anatomical Mapping
+
+| Canvas Position | Upper Teeth | Lower Teeth |
+|----------------|-------------|-------------|
+| Top | Vestibular | Lingual |
+| Bottom | Palatina | Vestibular |
+| Right (Q1/Q4) | Mesial | Mesial |
+| Right (Q2/Q3) | Distal | Distal |
+| Left (Q1/Q4) | Distal | Distal |
+| Left (Q2/Q3) | Mesial | Mesial |
+| Middle (molars) | Oclusal | Oclusal |
+| Middle (incisors) | Incisal | Incisal |

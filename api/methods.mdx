@@ -1,0 +1,560 @@
+---
+title: 'Plugin Methods'
+description: 'Complete reference for jQuery Odontogram plugin methods with usage examples'
+---
+
+## Method Overview
+
+All methods are called using the jQuery plugin pattern:
+
+```javascript
+$('#odontogram').odontogram('methodName', arg1, arg2, ...)
+```
+
+## Core Methods
+
+### setMode()
+
+Sets the current drawing mode for the odontogram.
+
+```javascript
+$('#odontogram').odontogram('setMode', mode)
+```
+
+<ParamField path="mode" type="number" required>
+  The treatment mode constant (e.g., `ODONTOGRAM_MODE_AMF`, `ODONTOGRAM_MODE_CARIES`)
+</ParamField>
+
+<ResponseField name="returns" type="jQuery">
+  Returns the jQuery object for chaining
+</ResponseField>
+
+#### Usage Examples
+
+From `dental-app.js:883-892`:
+
+```javascript
+// Set mode when user clicks treatment button
+$('#ODONTOGRAM_MODE_CARIES').click(function() {
+  $('#odontogram').odontogram('setMode', ODONTOGRAM_MODE_CARIES)
+  console.log('🔧 Mode set to: CARIES')
+})
+
+// Set mode for amalgam filling
+$('#ODONTOGRAM_MODE_AMF').click(function() {
+  $('#odontogram').odontogram('setMode', ODONTOGRAM_MODE_AMF)
+})
+```
+
+#### What It Does
+
+From `jquery.odontogram.js:2586-2594`:
+
+```javascript
+function setMode($this, mode) {
+  var instance = $this.data('odontogram')
+  instance.setMode(mode)
+}
+
+Odontogram.prototype.setMode = function(mode) {
+  this.mode = mode
+  return this
+}
+```
+
+- Clears active geometry selection
+- Sets the internal mode property
+- Subsequent clicks apply this treatment type
+
+---
+
+### redraw()
+
+Redraws the entire canvas with current geometry.
+
+```javascript
+$('#odontogram').odontogram('redraw')
+```
+
+<ResponseField name="returns" type="jQuery">
+  Returns the jQuery object for chaining
+</ResponseField>
+
+#### Usage Examples
+
+```javascript
+// Manually trigger redraw after geometry changes
+$('#odontogram').odontogram('setGeometry', newGeometry)
+$('#odontogram').odontogram('redraw')
+
+// Redraw after clearing treatments
+$('#odontogram').odontogram('clearAll')
+$('#odontogram').odontogram('redraw')  // Optional, clearAll calls this internally
+```
+
+#### What It Does
+
+From `jquery.odontogram.js:2388-2449`:
+
+```javascript
+Odontogram.prototype.redraw = function() {
+  var ctx = this.context
+  
+  // 1. Clear canvas
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+  
+  // 2. Draw background tooth grid
+  if (this.background) {
+    ctx.drawImage(this.background.image, ...)
+  }
+  
+  // 3. Draw hover effects
+  for (var i = 0; i < this.hoverGeoms.length; i++) {
+    hoverGeoms.render(ctx)
+  }
+  
+  // 4. Render painting functions (background layer)
+  var paintingFunctions = ['RES', 'CARIES', 'CARIES_UNTREATABLE', 'FIS', 'Polygon']
+  for (var keyCoord in this.geometry) {
+    geoms = this.geometry[keyCoord]
+    for (var x in geoms) {
+      if (geoms[x].render && paintingFunctions.includes(geoms[x].name)) {
+        geoms[x].render(ctx)
+      }
+    }
+  }
+  
+  // 5. Render symbols and markers (foreground layer)
+  for (var keyCoord in this.geometry) {
+    geoms = this.geometry[keyCoord]
+    for (var x in geoms) {
+      if (geoms[x].render && !paintingFunctions.includes(geoms[x].name)) {
+        geoms[x].render(ctx)
+      }
+    }
+  }
+  
+  // 6. Draw active selection
+  if (this.active_geometry) {
+    this.active_geometry.render(ctx)
+  }
+  
+  return this
+}
+```
+
+---
+
+### setGeometry()
+
+Sets the entire geometry (all treatments) for the odontogram.
+
+```javascript
+$('#odontogram').odontogram('setGeometry', geometry)
+```
+
+<ParamField path="geometry" type="object" required>
+  Object mapping tooth coordinates to arrays of treatment objects
+  
+  ```javascript
+  {
+    "100:100;150:150;125:125": [  // Tooth coordinate key
+      {
+        name: "AMF",
+        pos: "18-T",  // Tooth 18, Top surface
+        vertices: [{x: 100, y: 100}, ...],
+        layer: "pre",
+        options: {...}
+      }
+    ]
+  }
+  ```
+</ParamField>
+
+<ResponseField name="returns" type="jQuery">
+  Returns the jQuery object for chaining
+</ResponseField>
+
+#### Usage Examples
+
+```javascript
+// Load geometry from saved data
+const savedGeometry = loadFromLocalStorage('odontogram_geometry')
+$('#odontogram').odontogram('setGeometry', savedGeometry)
+
+// Clear all treatments by setting empty geometry
+$('#odontogram').odontogram('setGeometry', {})
+```
+
+#### What It Does
+
+From `jquery.odontogram.js:2451-2461`:
+
+```javascript
+Odontogram.prototype.setGeometry = function(geometry) {
+  // Convert geometry objects to shape class instances
+  for (var keyCoord in geometry) {
+    for (var i = 0; i < geometry[keyCoord].length; i++) {
+      geometry[keyCoord][i] = convertGeomFromObject(geometry[keyCoord][i])
+    }
+  }
+  
+  this.geometry = geometry
+  this.redraw()  // Automatically redraws
+}
+```
+
+---
+
+### getDataURL()
+
+Exports the current odontogram canvas as a data URL (PNG image).
+
+```javascript
+var dataURL = $('#odontogram').odontogram('getDataURL')
+```
+
+<ResponseField name="returns" type="string">
+  Data URL string (format: `data:image/png;base64,...`)
+</ResponseField>
+
+#### Usage Examples
+
+From `dental-app.js:937-939`:
+
+```javascript
+// Download odontogram as image
+$('#download').click(function() {
+  const dataURL = $('#odontogram').odontogram('getDataURL')
+  
+  // Create download link
+  const a = document.createElement('a')
+  a.href = dataURL
+  a.download = 'odontogram.png'
+  a.click()
+})
+
+// Use in professional document generation
+function generateProfessionalPNG() {
+  const odontogramDataURL = $('#odontogram').odontogram('getDataURL')
+  const odontogramImg = new Image()
+  
+  odontogramImg.onload = function() {
+    // Draw to larger canvas for professional document
+    ctx.drawImage(odontogramImg, x, y, width, height)
+  }
+  
+  odontogramImg.src = odontogramDataURL
+}
+```
+
+#### What It Does
+
+From `jquery.odontogram.js:2513-2515`:
+
+```javascript
+Odontogram.prototype.getDataURL = function() {
+  return this.canvas.toDataURL()  // Returns PNG data URL
+}
+```
+
+---
+
+### search()
+
+Searches for a tooth by a specific property value.
+
+```javascript
+var result = instance.search(key, value)
+```
+
+<ParamField path="key" type="string" required>
+  Property name to search (e.g., `'num'` for FDI number)
+</ParamField>
+
+<ParamField path="value" type="any" required>
+  Value to match
+</ParamField>
+
+<ResponseField name="returns" type="array | null">
+  Returns `[coordinateKey, toothData]` if found, `null` if not found
+  
+  ```javascript
+  [
+    "100:100;150:150;125:125",  // Coordinate key
+    {
+      num: "18",
+      bigBoxSize: 50,
+      smallBoxSize: 25,
+      x1: 100, y1: 100,
+      x2: 150, y2: 150,
+      cx: 125, cy: 125,
+      top: {...}, right: {...}, bottom: {...}, left: {...}, middle: {...}
+    }
+  ]
+  ```
+</ResponseField>
+
+#### Usage Examples
+
+From `jquery.odontogram.js:2463-2471`:
+
+```javascript
+const instance = $('#odontogram').data('odontogram')
+
+// Find tooth by FDI number
+const tooth18 = instance.search('num', '18')
+if (tooth18) {
+  console.log('Found tooth 18:', tooth18[1])
+  console.log('Coordinates:', tooth18[0])
+}
+
+// Find tooth by center coordinates
+const toothAtCenter = instance.search('cx', 125)
+```
+
+#### What It Does
+
+From `jquery.odontogram.js:2463-2471`:
+
+```javascript
+Odontogram.prototype.search = function(key, value) {
+  const obj = this.teeth
+  for (let k in obj) {
+    if (obj[k][key] == value) {
+      return [k, obj[k]]  // Returns [key, toothData]
+    }
+  }
+  return null
+}
+```
+
+---
+
+### clearAll()
+
+Clears all treatments from the odontogram.
+
+```javascript
+$('#odontogram').odontogram('clearAll')
+```
+
+<ResponseField name="returns" type="jQuery">
+  Returns the jQuery object for chaining
+</ResponseField>
+
+#### Usage Examples
+
+From `dental-app.js:903-934`:
+
+```javascript
+// Clear all button with confirmation
+$('#ODONTOGRAM_MODE_DEFAULT').click(function() {
+  const treatmentCount = Object.values(currentGeometry).reduce(
+    (sum, treatments) => sum + (treatments?.length || 0), 0
+  )
+  
+  if (treatmentCount > 0) {
+    const confirmClear = confirm(
+      `⚠️ ¿Está seguro que desea borrar todos los tratamientos?\n\n` +
+      `Se eliminarán ${treatmentCount} tratamientos.\n\n` +
+      `Esta acción no se puede deshacer.`
+    )
+    
+    if (confirmClear) {
+      $('#odontogram').odontogram('clearAll')
+      $('#odontogram').odontogram('setMode', ODONTOGRAM_MODE_DEFAULT)
+      $('.controls-panel button').removeClass('active')
+      
+      console.log('🧹 All treatments cleared')
+    }
+  }
+})
+
+// Clear on initialization for clean start
+function initializeOdontogram(type) {
+  $('#odontogram').odontogram('init', options)
+  $('#odontogram').odontogram('clearAll')  // Start clean
+}
+```
+
+#### What It Does
+
+From `jquery.odontogram.js:1777-1786`:
+
+```javascript
+Odontogram.prototype.clearAll = function() {
+  this.geometry = {}              // Clear all treatments
+  this.active_geometry = null     // Clear selection
+  this.mode_bridge_coords = []    // Clear bridge coordinates
+  this.hoverGeoms = []            // Clear hover effects
+  this.redraw()                   // Redraw clean canvas
+  
+  console.log('🧹 Odontogram cleared - all treatments removed')
+  return this
+}
+```
+
+---
+
+### setGeometryByPos()
+
+Sets geometry using position-based notation (FDI number + surface code).
+
+```javascript
+$('#odontogram').odontogram('setGeometryByPos', data)
+```
+
+<ParamField path="data" type="array" required>
+  Array of treatment objects with `code` and `pos` properties
+  
+  ```javascript
+  [
+    {
+      code: "AMF",        // Treatment code
+      pos: "18-T"         // Position: Tooth 18, Top surface
+    },
+    {
+      code: "CARIES",
+      pos: "21-M"         // Tooth 21, Middle surface
+    },
+    {
+      code: "MIS",
+      pos: "36"           // Tooth 36, whole tooth
+    }
+  ]
+  ```
+</ParamField>
+
+<ResponseField name="returns" type="object">
+  Returns the generated geometry object
+</ResponseField>
+
+#### Position Format
+
+- **Whole tooth**: Just FDI number (e.g., `"18"`)
+- **Surface**: FDI number + dash + surface code (e.g., `"18-T"`)
+
+**Surface Codes:**
+- `T` - Top
+- `B` - Bottom
+- `L` - Left
+- `R` - Right
+- `M` - Middle
+
+#### Usage Examples
+
+```javascript
+// Load treatments from simplified data format
+const treatmentData = [
+  { code: "AMF", pos: "18-T" },      // Amalgam on tooth 18 top
+  { code: "CARIES", pos: "21-M" },   // Caries on tooth 21 middle
+  { code: "POC", pos: "16" },        // Crown on tooth 16 (whole)
+  { code: "MIS", pos: "36" }         // Missing tooth 36
+]
+
+const geometry = $('#odontogram').odontogram('setGeometryByPos', treatmentData)
+console.log('Generated geometry:', geometry)
+```
+
+#### What It Does
+
+From `jquery.odontogram.js:2473-2511`:
+
+```javascript
+Odontogram.prototype.setGeometryByPos = function(data) {
+  let geometry = {}
+  
+  for (d of data) {
+    if (!d.code || !d.pos) continue
+    
+    if (d.pos.includes('-')) {
+      // Surface treatment
+      [pos, sub] = d.pos.split('-')
+      const t = this.search('num', pos)
+      
+      // Map surface code to coordinates
+      let s
+      if (sub == 'L') s = t[1].left
+      else if (sub == 'R') s = t[1].right
+      else if (sub == 'B') s = t[1].bottom
+      else if (sub == 'T') s = t[1].top
+      else if (sub == 'M') s = t[1].middle
+      
+      if (!geometry[t[0]]) geometry[t[0]] = []
+      
+      geometry[t[0]].push({
+        name: d.code,
+        pos: d.pos,
+        vertices: [s.bl, s.br, s.tr, s.tl]
+      })
+    } else {
+      // Whole tooth treatment
+      const t = this.search('num', d.pos)
+      if (!geometry[t[0]]) geometry[t[0]] = []
+      
+      geometry[t[0]].push({
+        name: d.code,
+        pos: d.pos,
+        vertices: [
+          { x: t[1].x1, y: t[1].y1 },
+          { x: t[1].x2, y: t[1].y2 }
+        ]
+      })
+    }
+  }
+  
+  this.setGeometry(geometry)
+  return geometry
+}
+```
+
+---
+
+## Method Chaining
+
+Most methods return the jQuery object, allowing for method chaining:
+
+```javascript
+$('#odontogram')
+  .odontogram('init', options)
+  .odontogram('clearAll')
+  .odontogram('setMode', ODONTOGRAM_MODE_DEFAULT)
+```
+
+## Event Handling
+
+The odontogram fires a custom jQuery event when geometry changes:
+
+```javascript
+// Listen for geometry changes
+$('#odontogram').on('change', function(event, geometry) {
+  console.log('Geometry updated:', geometry)
+  updateOdontogramData(geometry)
+})
+```
+
+From `dental-app.js:863-872`:
+
+```javascript
+$('#odontogram').on('change', function(_, geometry) {
+  updateOdontogramData(geometry)
+  
+  console.log('📊 Geometry updated. Total treatments:', 
+    Object.values(geometry).reduce(
+      (sum, treatments) => sum + (treatments?.length || 0), 0
+    )
+  )
+})
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Treatment Codes" icon="tooth" href="/api/treatment-codes">
+    Explore all treatment mode constants
+  </Card>
+  <Card title="Plugin Overview" icon="book" href="/api/plugin-overview">
+    Learn about plugin architecture
+  </Card>
+</CardGroup>

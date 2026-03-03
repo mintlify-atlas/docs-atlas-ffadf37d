@@ -1,0 +1,591 @@
+---
+title: 'Export & Import'
+description: 'Data export to JSON and PNG report generation functionality'
+icon: 'download'
+---
+
+## Export Overview
+
+The Dental Odontogram application provides two export methods:
+
+1. **JSON Export** - Download complete odontogram data as structured JSON
+2. **PNG Report** - Generate and upload professional clinical document to Airtable
+
+## JSON Export
+
+### Export Button
+
+Located in the controls column:
+
+```html
+<button id="exportData" class="treatment-btn export-btn" 
+        title="Exportar datos en formato JSON">
+  <span class="icon">📊</span>
+  <span class="name">Exportar</span>
+</button>
+```
+
+### Export Event Handler
+
+```javascript
+// Enhanced export dental data button
+$('#exportData').click(function() {
+  const treatmentCount = Object.values(currentGeometry).reduce(
+    (sum, treatments) => sum + (treatments?.length || 0), 0
+  )
+  const notesCount = Object.keys(toothNotes).length
+  
+  if (treatmentCount === 0 && notesCount === 0) {
+    alert('❌ No hay tratamientos ni notas registradas para exportar.')
+    return
+  }
+  
+  try {
+    const exportedData = exportOdontogramData()
+    alert(`✅ Datos exportados exitosamente!`)
+  } catch (error) {
+    console.error('Error exporting data:', error)
+    alert('❌ Error al exportar los datos. Verifique la consola para más detalles.')
+  }
+})
+```
+
+### Data Structure
+
+Exported JSON follows this structure:
+
+```javascript
+const exportData = {
+  fecha: '2026-03-03',              // Export date (YYYY-MM-DD)
+  nombre: 'PACIENTE NAME',          // Patient name
+  piezas: []                        // Array of teeth with treatments
+}
+```
+
+### Tooth Data Format
+
+Each tooth entry includes:
+
+```javascript
+const toothData = {
+  pieza: '16',                      // FDI tooth number
+  condiciones: [],                  // Pathologies/conditions
+  prestacion_requerida: [],         // Required treatments (blue layer)
+  prestacion_preexistente: [],      // Pre-existing treatments (red layer)
+  notas: ''                         // Clinical notes
+}
+```
+
+## Export Function
+
+Full implementation from `dental-app.js`:
+
+<CodeGroup>
+```javascript exportOdontogramData() Function
+function exportOdontogramData() {
+  const now = new Date()
+  const instance = $('#odontogram').data('odontogram')
+  
+  // SIMPLIFIED JSON - ONLY THE EXACT FIELDS REQUESTED
+  const exportData = {
+    fecha: now.toISOString().split('T')[0],
+    nombre: 'PACIENTE - [A obtener de Airtable]',
+    piezas: []
+  }
+  
+  // Process each tooth with treatments
+  for (const [key, treatments] of Object.entries(currentGeometry)) {
+    if (treatments && treatments.length > 0) {
+      // Get tooth number for FDI identification
+      let toothNum = null
+      if (instance && instance.teeth) {
+        for (const [teethKey, teethData] of Object.entries(instance.teeth)) {
+          if (teethKey === key) {
+            toothNum = teethData.num
+            break
+          }
+        }
+      }
+      
+      if (toothNum) {
+        // Get tooth information from JSON data
+        const toothInfo = getToothInfo(toothNum)
+        
+        // Initialize tooth data structure with ONLY the requested fields
+        const toothData = {
+          pieza: toothNum,
+          condiciones: [],
+          prestacion_requerida: [],
+          prestacion_preexistente: [],
+          notas: toothNotes[toothNum] || ''
+        }
+        
+        // Group treatments by surface for proper display
+        function groupTreatmentsBySurface(treatmentList) {
+          const grouped = {}
+          
+          treatmentList.forEach((treatment) => {
+            const treatmentName = getTreatmentName(treatment.name)
+            const withSides = [
+              'CARIES', 'CARIES_UNTREATABLE', 'REF', 'NVT', 
+              'SIL', 'RES', 'AMF', 'COF', 'INC'
+            ]
+            
+            if (!grouped[treatment.name]) {
+              grouped[treatment.name] = {
+                nombre: treatmentName,
+                superficies: [],
+                usa_superficies: withSides.includes(treatment.name)
+              }
+            }
+            
+            // Collect surface information for treatments that use surfaces
+            if (withSides.includes(treatment.name) && treatment.pos && toothInfo) {
+              // ... surface mapping logic ...
+            }
+          })
+          
+          return grouped
+        }
+        
+        // Categorize treatments
+        const condicionTreatments = treatments.filter((treatment) => {
+          const treatmentCode = treatment.name
+          const wholeTooth = ['PRE']
+          const withSides = ['CARIES_UNTREATABLE']
+          return wholeTooth.includes(treatmentCode) || withSides.includes(treatmentCode)
+        })
+        
+        const prestacionTreatments = treatments.filter((treatment) => {
+          const treatmentCode = treatment.name
+          const wholeTooth = [
+            'CFR', 'FRM_ACR', 'BRIDGE', 'ORT', 'POC', 
+            'FMC', 'IPX', 'RCT', 'MIS', 'UNE', 'PRE'
+          ]
+          const withSides = [
+            'CARIES', 'REF', 'NVT', 'SIL', 'RES', 'AMF', 'COF', 'INC'
+          ]
+          return wholeTooth.includes(treatmentCode) || withSides.includes(treatmentCode)
+        })
+        
+        // Process Condiciones
+        if (condicionTreatments.length > 0) {
+          const groupedConditions = groupTreatmentsBySurface(condicionTreatments)
+          
+          Object.values(groupedConditions).forEach((condition) => {
+            let conditionText = condition.nombre
+            if (condition.usa_superficies && condition.superficies.length > 0) {
+              conditionText += ` - Cara/s: ${condition.superficies.join(', ')}`
+            }
+            toothData.condiciones.push(conditionText)
+          })
+        }
+        
+        // Process Prestaciones by layer
+        if (prestacionTreatments.length > 0) {
+          const preExistentes = prestacionTreatments.filter((t) => t.layer === 'pre')
+          const requeridas = prestacionTreatments.filter((t) => t.layer === 'req' || !t.layer)
+          
+          // Prestaciones Preexistentes
+          if (preExistentes.length > 0) {
+            const groupedPreExistentes = groupTreatmentsBySurface(preExistentes)
+            
+            Object.values(groupedPreExistentes).forEach((prestacion) => {
+              let prestacionText = prestacion.nombre
+              if (prestacion.usa_superficies && prestacion.superficies.length > 0) {
+                prestacionText += ` - Cara/s: ${prestacion.superficies.join(', ')}`
+              }
+              toothData.prestacion_preexistente.push(prestacionText)
+            })
+          }
+          
+          // Prestaciones Requeridas
+          if (requeridas.length > 0) {
+            const groupedRequeridas = groupTreatmentsBySurface(requeridas)
+            
+            Object.values(groupedRequeridas).forEach((prestacion) => {
+              let prestacionText = prestacion.nombre
+              if (prestacion.usa_superficies && prestacion.superficies.length > 0) {
+                prestacionText += ` - Cara/s: ${prestacion.superficies.join(', ')}`
+              }
+              toothData.prestacion_requerida.push(prestacionText)
+            })
+          }
+        }
+        
+        // Only add tooth data if there are treatments or notes
+        if (
+          toothData.condiciones.length > 0 ||
+          toothData.prestacion_requerida.length > 0 ||
+          toothData.prestacion_preexistente.length > 0 ||
+          toothData.notas.trim() !== ''
+        ) {
+          exportData.piezas.push(toothData)
+        }
+      }
+    }
+  }
+  
+  // Sort teeth by FDI number
+  exportData.piezas.sort((a, b) => parseInt(a.pieza) - parseInt(b.pieza))
+  
+  // Create and download JSON file
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+    type: 'application/json'
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `odontograma_${exportData.fecha}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+  
+  console.log('📋 Simple odontogram data exported:', exportData)
+  return exportData
+}
+```
+</CodeGroup>
+
+### Example JSON Output
+
+<CodeGroup>
+```json Complete Export Example
+{
+  "fecha": "2026-03-03",
+  "nombre": "Juan Pérez",
+  "piezas": [
+    {
+      "pieza": "16",
+      "condiciones": [],
+      "prestacion_requerida": [
+        "Corona"
+      ],
+      "prestacion_preexistente": [
+        "Obturación - Cara/s: Oclusal, Mesial",
+        "Tratamiento de Conducto"
+      ],
+      "notas": "Large filling showing wear. Crown recommended to prevent fracture."
+    },
+    {
+      "pieza": "26",
+      "condiciones": [
+        "Caries Incurable - Cara/s: Distal"
+      ],
+      "prestacion_requerida": [
+        "Extracción"
+      ],
+      "prestacion_preexistente": [],
+      "notas": "Extensive decay. Extraction scheduled for next week."
+    },
+    {
+      "pieza": "36",
+      "condiciones": [],
+      "prestacion_requerida": [
+        "Obturación - Cara/s: Oclusal"
+      ],
+      "prestacion_preexistente": [],
+      "notas": "Small cavity detected during routine exam."
+    }
+  ]
+}
+```
+</CodeGroup>
+
+## PNG Report Generation
+
+### Download Button
+
+```html
+<button id="download" class="treatment-btn download-btn" 
+        title="Descargar imagen del odontograma">
+  <span class="icon">💾</span>
+  <span class="name">Descargar</span>
+</button>
+```
+
+### Event Handler
+
+```javascript
+// Download professional landscape odontogram image
+$('#download').click(function() {
+  generateProfessionalPNG()
+})
+```
+
+### PNG Generation Function
+
+The `generateProfessionalPNG()` function creates a high-quality A4-sized clinical document:
+
+<CodeGroup>
+```javascript Canvas Setup
+async function generateProfessionalPNG() {
+  try {
+    console.log('🖼️ Generating professional clinical document...')
+    
+    // Get current patient record ID and name
+    const urlParams = new URLSearchParams(window.location.search)
+    const recordId = urlParams.get('recordId') || urlParams.get('id')
+    
+    if (!recordId) {
+      console.error('❌ No record ID found in URL')
+      alert('Error: No se pudo identificar el paciente para subir el archivo')
+      return
+    }
+    
+    // Get patient name
+    const patientName = getCurrentPatientName() || 
+                       getPatientNameFromDOM() || 
+                       'PACIENTE SIN NOMBRE'
+    
+    // Show loading state
+    const downloadBtn = document.getElementById('download')
+    const originalText = downloadBtn.innerHTML
+    downloadBtn.innerHTML = '<span class="icon">⏳</span><span class="name">Subiendo...</span>'
+    downloadBtn.disabled = true
+    
+    // Create A4-sized vertical canvas (professional medical standard)
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    
+    // A4 proportions at high resolution
+    canvas.width = 1600
+    canvas.height = 2000
+    
+    // Clinical white background
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+```
+
+```javascript Header Rendering
+    let currentY = 60
+    
+    // PROFESSIONAL HEADER
+    ctx.fillStyle = '#2c3e50'
+    ctx.font = 'bold 48px Arial'
+    ctx.textAlign = 'center'
+    ctx.fillText('ODONTOGRAMA', canvas.width / 2, currentY)
+    currentY += 50
+    
+    // Patient info section
+    ctx.fillStyle = '#34495e'
+    ctx.font = '28px Arial'
+    ctx.textAlign = 'left'
+    
+    // Patient name box with actual name from Airtable
+    ctx.strokeStyle = '#bdc3c7'
+    ctx.lineWidth = 3
+    ctx.strokeRect(60, currentY, canvas.width - 120, 60)
+    
+    // Format patient name to fit in the box
+    const maxNameWidth = canvas.width - 200
+    ctx.font = '28px Arial'
+    let displayName = patientName.toUpperCase()
+    
+    // Truncate if too long to fit
+    const metrics = ctx.measureText(displayName)
+    if (metrics.width > maxNameWidth) {
+      while (ctx.measureText(displayName + '...').width > maxNameWidth && 
+             displayName.length > 0) {
+        displayName = displayName.slice(0, -1)
+      }
+      displayName += '...'
+    }
+    
+    // Display actual patient name
+    ctx.fillText(`PACIENTE: ${displayName}`, 80, currentY + 38)
+    currentY += 80
+    
+    // Date and professional info
+    const currentDate = new Date().toLocaleDateString('es-ES')
+    const currentTime = new Date().toLocaleTimeString('es-ES', { hour12: false })
+    ctx.font = '24px Arial'
+    ctx.fillText(`FECHA: ${currentDate} - HORA: ${currentTime}`, 80, currentY)
+    currentY += 50
+```
+
+```javascript Odontogram Image Rendering
+    // Professional header line
+    ctx.strokeStyle = '#3498db'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(60, currentY)
+    ctx.lineTo(canvas.width - 60, currentY)
+    ctx.stroke()
+    currentY += 40
+    
+    // Get odontogram and scale bigger for better reading
+    const odontogramDataURL = $('#odontogram').odontogram('getDataURL')
+    const odontogramImg = new Image()
+    
+    await new Promise((resolve) => {
+      odontogramImg.onload = resolve
+      odontogramImg.src = odontogramDataURL
+    })
+    
+    // INCREASED CONTAINER SIZE FOR BETTER READABILITY
+    const maxOdontogramWidth = canvas.width - 60
+    const maxOdontogramHeight = 700
+    
+    const scaleX = maxOdontogramWidth / odontogramImg.naturalWidth
+    const scaleY = maxOdontogramHeight / odontogramImg.naturalHeight
+    const scale = Math.min(scaleX, scaleY)
+    
+    const scaledWidth = odontogramImg.naturalWidth * scale
+    const scaledHeight = odontogramImg.naturalHeight * scale
+    const odontogramX = (canvas.width - scaledWidth) / 2
+    
+    // Draw the bigger odontogram
+    ctx.drawImage(odontogramImg, odontogramX, currentY, scaledWidth, scaledHeight)
+    currentY += scaledHeight + 40
+```
+
+```javascript Upload to Airtable
+    // Convert canvas to blob and upload to Airtable
+    canvas.toBlob(async (blob) => {
+      try {
+        console.log('📤 Uploading PNG and JSON data to backend...')
+        
+        // Create filename with patient name and timestamp
+        const now = new Date()
+        const timestamp = now.toLocaleDateString('es-ES').replace(/\//g, '-') + 
+                         '_' + 
+                         now.toLocaleTimeString('es-ES', { hour12: false })
+                            .replace(/:/g, '-')
+        const sanitizedName = patientName.replace(/[^a-zA-Z0-9\s]/g, '')
+                                         .replace(/\s+/g, '_')
+        const filename = `Odontograma_${sanitizedName}_${timestamp}.png`
+        
+        // GENERATE JSON DATA (same as export function)
+        const jsonData = { /* ... same as exportOdontogramData() ... */ }
+        
+        // Create FormData for upload (PNG + JSON)
+        const formData = new FormData()
+        formData.append('file', blob, filename)
+        formData.append('recordId', recordId)
+        formData.append('fieldName', 'odontograma-adjunto')
+        formData.append('jsonData', JSON.stringify(jsonData, null, 2))
+        formData.append('jsonFieldName', 'notas-odontograma-paciente')
+        
+        // Upload to backend API (handles Cloudinary + Airtable + JSON)
+        const uploadResponse = await fetch('/api/upload-odontogram', {
+          method: 'POST',
+          body: formData
+        })
+        
+        const uploadResult = await uploadResponse.json()
+        
+        if (uploadResponse.ok && uploadResult.success) {
+          console.log('✅ Complete upload workflow successful!')
+          alert(
+            `✅ Odontograma subido exitosamente!\n\n` +
+            `📷 Imagen: Total de odontogramas: ${uploadResult.totalAttachments}\n` +
+            `📋 Datos JSON: ${uploadResult.jsonAppended ? 'Añadidos a notas' : 'Error'}\n\n` +
+            `Archivo: ${uploadResult.fileName}`
+          )
+        } else {
+          alert(`❌ Error al subir: ${uploadResult.error || 'Unknown error'}`)
+        }
+      } catch (uploadError) {
+        console.error('❌ Upload error:', uploadError)
+        alert(`❌ Error al subir el archivo: ${uploadError.message}`)
+      } finally {
+        // Restore button state
+        downloadBtn.innerHTML = originalText
+        downloadBtn.disabled = false
+      }
+    }, 'image/png', 1.0)
+  } catch (error) {
+    console.error('❌ Error generating document:', error)
+    alert('❌ Error al generar el documento')
+  }
+}
+```
+</CodeGroup>
+
+## PNG Report Features
+
+<CardGroup cols={2}>
+  <Card title="A4 Format" icon="file">
+    Standard medical document size (1600 × 2000 pixels)
+  </Card>
+  
+  <Card title="Patient Header" icon="user">
+    Patient name, date, and time prominently displayed
+  </Card>
+  
+  <Card title="Large Odontogram" icon="tooth">
+    Scaled to 700px height for clear visibility
+  </Card>
+  
+  <Card title="Treatment Details" icon="list">
+    Shows first 8 teeth with full treatment and note details
+  </Card>
+  
+  <Card title="Two-Column Layout" icon="columns">
+    4 teeth per column for efficient space usage
+  </Card>
+  
+  <Card title="Layer Colors" icon="palette">
+    Red for pre-existing, blue for required treatments
+  </Card>
+  
+  <Card title="Readable Fonts" icon="font">
+    Large fonts (18-28px) for professional readability
+  </Card>
+  
+  <Card title="Airtable Upload" icon="cloud-arrow-up">
+    Automatically uploaded to patient record attachment field
+  </Card>
+</CardGroup>
+
+## Upload Workflow
+
+<Steps>
+  <Step title="Generate PNG">
+    Canvas is created with patient data, odontogram, and treatment details.
+  </Step>
+  <Step title="Create JSON">
+    Same JSON structure as export function is generated.
+  </Step>
+  <Step title="Prepare FormData">
+    PNG blob, JSON data, record ID, and field names are packaged.
+  </Step>
+  <Step title="Upload to Backend">
+    POST request to `/api/upload-odontogram` endpoint.
+  </Step>
+  <Step title="Cloudinary Upload">
+    Backend uploads PNG to Cloudinary and gets URL.
+  </Step>
+  <Step title="Airtable Update">
+    PNG URL is appended to attachment field, JSON to notes field.
+  </Step>
+  <Step title="Confirmation">
+    Success message shows total attachments and JSON status.
+  </Step>
+</Steps>
+
+<Info>
+Both PNG and JSON data are uploaded simultaneously to ensure complete documentation of the odontogram state.
+</Info>
+
+## Data Validation
+
+Both export functions validate before processing:
+
+```javascript
+const treatmentCount = Object.values(currentGeometry).reduce(
+  (sum, treatments) => sum + (treatments?.length || 0), 0
+)
+const notesCount = Object.keys(toothNotes).length
+
+if (treatmentCount === 0 && notesCount === 0) {
+  alert('❌ No hay tratamientos ni notas registradas para exportar.')
+  return
+}
+```
+
+This prevents exporting empty odontograms.
+
+<Warning>
+At least one treatment or note must exist before export/download functions will execute.
+</Warning>

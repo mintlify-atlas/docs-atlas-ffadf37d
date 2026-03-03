@@ -1,0 +1,472 @@
+---
+title: 'Notes Functionality'
+description: 'How to add, save, and manage per-tooth clinical notes'
+icon: 'note-sticky'
+---
+
+## Notes System Overview
+
+The Dental Odontogram application provides a comprehensive notes system that allows dental professionals to add detailed clinical observations for each tooth with treatments.
+
+## Per-Tooth Notes
+
+Notes are automatically created for each tooth that has treatments applied. They appear in the notes section below the odontogram canvas.
+
+### Global Notes Storage
+
+```javascript
+// Global variable for storing notes
+let toothNotes = {}
+```
+
+Notes are stored in memory using tooth FDI numbers as keys:
+
+```javascript
+{
+  '16': 'Large cavity on mesial surface, needs immediate attention',
+  '26': 'Crown scheduled for next month',
+  '36': 'Patient reports sensitivity'
+}
+```
+
+## Adding Notes
+
+### Automatic Note Fields
+
+When you apply a treatment to a tooth, a note field is automatically generated:
+
+```javascript
+// ADD NOTES SECTION - from updateOdontogramData function
+const existingNote = loadToothNote(toothNum)
+html += `
+  <div class="tooth-notes-section">
+    <div class="notes-header">
+      <label for="notes-${toothNum}">Notas:</label>
+      <div class="notes-controls">
+        <button type="button" class="save-note-btn" 
+                data-tooth="${toothNum}" title="Guardar nota">
+          💾
+        </button>
+        <button type="button" class="clear-note-btn" 
+                data-tooth="${toothNum}" title="Limpiar nota">
+          🗑️
+        </button>
+      </div>
+    </div>
+    <textarea 
+      id="notes-${toothNum}" 
+      class="tooth-notes" 
+      placeholder="Agregar notas clínicas para diente ${toothNum}..."
+      rows="3"
+      data-tooth="${toothNum}">${existingNote}</textarea>
+    <div class="note-status" id="status-${toothNum}"></div>
+  </div>
+`
+```
+
+### Note Field Components
+
+<CardGroup cols={3}>
+  <Card title="Label" icon="tag">
+    Shows "Notas:" and tooth number in placeholder
+  </Card>
+  
+  <Card title="Textarea" icon="keyboard">
+    3-row expandable text field for clinical notes
+  </Card>
+  
+  <Card title="Controls" icon="sliders">
+    Save and clear buttons for manual control
+  </Card>
+</CardGroup>
+
+## Auto-Save Feature
+
+Notes automatically save after 2 seconds of inactivity:
+
+```javascript
+// Enhanced notes handling with save functionality
+$(document).on('input', '.tooth-notes', function() {
+  const toothNum = $(this).data('tooth')
+  const noteText = $(this).val()
+  
+  // Auto-save after 2 seconds of no typing
+  clearTimeout($(this).data('saveTimeout'))
+  const saveTimeout = setTimeout(() => {
+    saveToothNote(toothNum, noteText)
+    $(`#status-${toothNum}`)
+      .text('✅ Guardado automáticamente')
+      .addClass('auto-saved')
+    setTimeout(() => {
+      $(`#status-${toothNum}`).removeClass('auto-saved').text('')
+    }, 2000)
+  }, 2000)
+  
+  $(this).data('saveTimeout', saveTimeout)
+  $(`#status-${toothNum}`).text('✏️ Editando...').removeClass('auto-saved')
+})
+```
+
+### Auto-Save Workflow
+
+<Steps>
+  <Step title="User types in note field">
+    Input event is triggered.
+  </Step>
+  <Step title="Status shows 'Editando...'">
+    Visual feedback that text is being edited.
+  </Step>
+  <Step title="2-second timer starts">
+    Each keystroke resets the timer.
+  </Step>
+  <Step title="Timer completes">
+    Note is automatically saved after 2 seconds of no typing.
+  </Step>
+  <Step title="Status shows 'Guardado automáticamente'">
+    Confirmation message appears for 2 seconds, then disappears.
+  </Step>
+</Steps>
+
+## Manual Save
+
+Users can manually save notes at any time:
+
+```javascript
+// Manual save button for notes
+$(document).on('click', '.save-note-btn', function() {
+  const toothNum = $(this).data('tooth')
+  const noteText = $(`#notes-${toothNum}`).val()
+  
+  saveToothNote(toothNum, noteText)
+  $(`#status-${toothNum}`)
+    .text('💾 Nota guardada manualmente')
+    .addClass('manual-saved')
+  
+  setTimeout(() => {
+    $(`#status-${toothNum}`).removeClass('manual-saved').text('')
+  }, 3000)
+})
+```
+
+### Manual Save Benefits
+
+- **Immediate save** without waiting for auto-save timer
+- **Visual confirmation** with "💾 Nota guardada manualmente" message
+- **Longer feedback** (3 seconds vs 2 seconds for auto-save)
+
+## Save Function
+
+The core save function:
+
+```javascript
+/**
+ * Save note for specific tooth
+ */
+function saveToothNote(toothNum, noteText) {
+  toothNotes[toothNum] = noteText
+  
+  // Visual feedback for save
+  const noteElement = $(`#notes-${toothNum}`)
+  noteElement.addClass('note-saved')
+  
+  setTimeout(() => {
+    noteElement.removeClass('note-saved')
+  }, 1000)
+  
+  console.log(`📝 Note saved for tooth ${toothNum}:`, noteText)
+}
+```
+
+## Load Function
+
+Retrieve saved notes:
+
+```javascript
+/**
+ * Load note for specific tooth
+ */
+function loadToothNote(toothNum) {
+  return toothNotes[toothNum] || ''
+}
+```
+
+Notes are loaded when:
+- Treatment data is updated
+- Odontogram is refreshed
+- User switches between teeth
+
+## Clear Notes
+
+Notes can be cleared individually:
+
+```javascript
+// Clear note button
+$(document).on('click', '.clear-note-btn', function() {
+  const toothNum = $(this).data('tooth')
+  
+  if (confirm(`¿Está seguro que desea eliminar la nota del diente ${toothNum}?`)) {
+    $(`#notes-${toothNum}`).val('')
+    delete toothNotes[toothNum]
+    $(`#status-${toothNum}`)
+      .text('🗑️ Nota eliminada')
+      .addClass('note-deleted')
+    
+    setTimeout(() => {
+      $(`#status-${toothNum}`).removeClass('note-deleted').text('')
+    }, 2000)
+    
+    console.log(`🗑️ Note cleared for tooth ${toothNum}`)
+  }
+})
+```
+
+<Warning>
+Clearing a note requires confirmation and permanently removes the text. This action cannot be undone.
+</Warning>
+
+## Notes Display
+
+Notes appear in the treatment summary for each tooth:
+
+```javascript
+function updateOdontogramData(geometry) {
+  // ... treatment rendering ...
+  
+  // Notes section for each tooth
+  const existingNote = loadToothNote(toothNum)
+  html += `
+    <div class="tooth-notes-section">
+      <div class="notes-header">
+        <label for="notes-${toothNum}">Notas:</label>
+        <div class="notes-controls">
+          <button type="button" class="save-note-btn" data-tooth="${toothNum}">
+            💾
+          </button>
+          <button type="button" class="clear-note-btn" data-tooth="${toothNum}">
+            🗑️
+          </button>
+        </div>
+      </div>
+      <textarea id="notes-${toothNum}" class="tooth-notes" 
+                data-tooth="${toothNum}">${existingNote}</textarea>
+      <div class="note-status" id="status-${toothNum}"></div>
+    </div>
+  `
+}
+```
+
+## Notes in Data Export
+
+Notes are included in JSON export:
+
+```javascript
+function exportOdontogramData() {
+  const exportData = {
+    fecha: now.toISOString().split('T')[0],
+    nombre: 'PACIENTE',
+    piezas: []
+  }
+  
+  // Process each tooth
+  for (const [key, treatments] of Object.entries(currentGeometry)) {
+    if (toothNum) {
+      const toothData = {
+        pieza: toothNum,
+        condiciones: [],
+        prestacion_requerida: [],
+        prestacion_preexistente: [],
+        notas: toothNotes[toothNum] || ''  // Include notes
+      }
+      
+      // ... process treatments ...
+      
+      // Only export if has treatments OR notes
+      if (
+        toothData.condiciones.length > 0 ||
+        toothData.prestacion_requerida.length > 0 ||
+        toothData.prestacion_preexistente.length > 0 ||
+        toothData.notas.trim() !== ''
+      ) {
+        exportData.piezas.push(toothData)
+      }
+    }
+  }
+}
+```
+
+<CodeGroup>
+```json Tooth with Note
+{
+  "pieza": "16",
+  "condiciones": [],
+  "prestacion_preexistente": [
+    "Obturación - Cara/s: Oclusal"
+  ],
+  "prestacion_requerida": [
+    "Corona"
+  ],
+  "notas": "Large filling from 2020 showing wear. Patient reports no pain. Crown recommended to prevent fracture. Schedule for next month."
+}
+```
+
+```json Tooth without Note
+{
+  "pieza": "26",
+  "condiciones": [],
+  "prestacion_preexistente": [],
+  "prestacion_requerida": [
+    "Obturación - Cara/s: Distal"
+  ],
+  "notas": ""
+}
+```
+</CodeGroup>
+
+## Notes in PNG Report
+
+Notes are rendered in the professional PNG report:
+
+```javascript
+function generateProfessionalPNG() {
+  // ... render odontogram ...
+  
+  // For each tooth with treatments
+  function renderToothData(tooth, x, y) {
+    // ... render treatments ...
+    
+    // NOTES - MUCH BIGGER FONTS
+    if (tooth.note) {
+      ctx.fillStyle = '#34495e'
+      ctx.font = 'bold 28px Arial'  // Large label
+      ctx.fillText('Notas:', x + 20, localY)
+      localY += 35
+      
+      // Word wrap notes with bigger font
+      ctx.fillStyle = '#34495e'
+      ctx.font = '24px Arial'  // Large text
+      const words = tooth.note.split(' ')
+      let line = ''
+      const maxWidth = columnWidth - 60
+      const lineHeight = 30
+      
+      for (const word of words) {
+        const testLine = line + word + ' '
+        const metrics = ctx.measureText(testLine)
+        
+        if (metrics.width > maxWidth && line !== '') {
+          ctx.fillText(line.trim(), x + 40, localY)
+          line = word + ' '
+          localY += lineHeight
+        } else {
+          line = testLine
+        }
+      }
+      
+      if (line.trim()) {
+        ctx.fillText(line.trim(), x + 40, localY)
+        localY += lineHeight + 20
+      }
+    }
+  }
+}
+```
+
+Notes appear in the PNG report with:
+- **28px bold** "Notas:" label
+- **24px** note text
+- **Word wrapping** for long notes
+- **Prominent placement** after treatment lists
+
+## Status Indicators
+
+### Visual Feedback States
+
+<AccordionGroup>
+  <Accordion title="Editing" icon="pen">
+    **Message**: "✏️ Editando..."
+    
+    **When**: User is typing in note field
+    
+    **Duration**: Visible while typing, disappears when auto-save triggers
+  </Accordion>
+
+  <Accordion title="Auto-saved" icon="floppy-disk">
+    **Message**: "✅ Guardado automáticamente"
+    
+    **When**: Auto-save completes (2 seconds after last keystroke)
+    
+    **Duration**: 2 seconds
+    
+    **CSS Class**: `.auto-saved`
+  </Accordion>
+
+  <Accordion title="Manual Save" icon="hand-pointer">
+    **Message**: "💾 Nota guardada manualmente"
+    
+    **When**: User clicks save button
+    
+    **Duration**: 3 seconds
+    
+    **CSS Class**: `.manual-saved`
+  </Accordion>
+
+  <Accordion title="Deleted" icon="trash">
+    **Message**: "🗑️ Nota eliminada"
+    
+    **When**: User confirms note deletion
+    
+    **Duration**: 2 seconds
+    
+    **CSS Class**: `.note-deleted`
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Be Specific" icon="bullseye">
+    Include details like dates, symptoms, patient feedback, and treatment rationale.
+  </Card>
+  
+  <Card title="Use Clinical Terms" icon="stethoscope">
+    Maintain professional terminology for clear communication.
+  </Card>
+  
+  <Card title="Note Timing" icon="clock">
+    Document when treatments were done or when they're scheduled.
+  </Card>
+  
+  <Card title="Patient Concerns" icon="comment">
+    Record any patient-reported symptoms or concerns.
+  </Card>
+</CardGroup>
+
+## Example Notes
+
+<CodeGroup>
+```text Pre-existing Treatment Note
+Large amalgam filling placed in 2019. 
+Patient reports no sensitivity. 
+Filling appears intact with good marginal seal.
+Monitor at next cleaning.
+```
+
+```text Required Treatment Note  
+Moderate caries detected on distal surface.
+No patient symptoms reported.
+Schedule composite filling for next visit.
+Consider preventive sealant on adjacent teeth.
+```
+
+```text Complex Case Note
+Root canal completed 2020 by Dr. Smith.
+Crown temporarily delayed due to patient schedule.
+Patient now ready to proceed with crown placement.
+Use porcelain-fused-to-metal for durability.
+Scheduled for March 15, 2026.
+```
+</CodeGroup>
+
+<Tip>
+Longer, detailed notes in the odontogram provide better context for treatment planning and communication with colleagues or specialists.
+</Tip>

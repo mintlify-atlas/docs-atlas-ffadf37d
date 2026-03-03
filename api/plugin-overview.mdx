@@ -1,0 +1,240 @@
+---
+title: 'Plugin Overview'
+description: 'Introduction to the jQuery Odontogram plugin architecture, core concepts, and rendering system'
+---
+
+## Introduction
+
+The jQuery Odontogram plugin is a powerful dental charting system that provides an interactive canvas-based interface for creating and managing dental odontograms. It renders tooth diagrams and supports various dental treatments and conditions through a shape-based rendering system.
+
+## Core Concepts
+
+The plugin is built on several key architectural concepts:
+
+### Canvas-Based Rendering
+
+The odontogram uses HTML5 Canvas for rendering all visual elements. This provides:
+- High-performance rendering of complex tooth diagrams
+- Precise control over drawing operations
+- Support for multiple rendering layers
+- Export capabilities via canvas data URLs
+
+### Treatment Mode System
+
+The plugin operates on a mode-based system where each dental treatment or condition has a corresponding mode constant (e.g., `ODONTOGRAM_MODE_AMF`, `ODONTOGRAM_MODE_CARIES`). Users interact with the odontogram by:
+
+1. Setting a treatment mode using `setMode()`
+2. Clicking on tooth surfaces to apply treatments
+3. The plugin automatically handles rendering and geometry management
+
+### Geometry Storage
+
+Treatments are stored as geometry objects that contain:
+- **Vertices**: Coordinate points defining the shape
+- **Name**: Treatment type identifier
+- **Position**: Surface location on the tooth
+- **Layer**: Annotation layer (pre-existing or required)
+- **Options**: Rendering options like colors and styles
+
+## Shape Classes
+
+The plugin uses JavaScript classes to represent different dental treatments. Each shape class implements a `render()` method that draws to the canvas context.
+
+### Base Shape Classes
+
+<CodeGroup>
+```javascript Polygon
+function Polygon(vertices, options) {
+  this.name = 'Polygon'
+  this.vertices = vertices
+  this.options = options
+  return this
+}
+
+Polygon.prototype.render = function(ctx) {
+  ctx.fillStyle = this.options.fillStyle
+  ctx.beginPath()
+  // ... drawing logic
+  ctx.fill()
+}
+```
+
+```javascript AMF (Amalgam Filling)
+function AMF(vertices, options) {
+  this.name = 'AMF'
+  this.vertices = vertices
+  this.layer = options?.layer || 'pre'
+  this.options = {
+    font: 'bold 16px Arial',
+    color: getColorForTreatment('AMF', this.layer)
+  }
+  return this
+}
+
+AMF.prototype.render = function(ctx) {
+  // Calculates center of surface
+  var centerX = xs.reduce((a, b) => a + b, 0) / xs.length
+  var centerY = ys.reduce((a, b) => a + b, 0) / ys.length
+  
+  // Draws /A symbol
+  ctx.fillText('/A', centerX, centerY)
+}
+```
+</CodeGroup>
+
+### Shape Categories
+
+Shapes are categorized by their rendering approach:
+
+**Surface Fill Shapes**
+- Fill entire tooth surfaces with colors
+- Examples: `CARIES`, `CARIES_UNTREATABLE`, `RES`, `FIS`
+- Render in background layer
+
+**Symbol Shapes**
+- Draw text symbols on surfaces
+- Examples: `AMF` (/A), `COF` (/Ob), `INC` (I), `SIL` (/S)
+- Render in foreground layer
+
+**Whole Tooth Shapes**
+- Apply to entire tooth, not individual surfaces
+- Examples: `MIS` (X), `UNE` (X), `RCT` (▼)
+
+**Structural Shapes**
+- Draw borders or special markers
+- Examples: `FMC` (square border), `POC` (circle)
+
+## Rendering System
+
+The plugin uses a two-layer rendering system:
+
+### Layer 1: Background (Painting Functions)
+
+These shapes render first, behind everything else:
+- `RES` - Restoration fill
+- `CARIES` - Caries fill
+- `CARIES_UNTREATABLE` - Untreatable caries
+- `FIS` - Fissure sealant
+- `Polygon` - Custom polygons
+
+### Layer 2: Foreground (Symbols and Markers)
+
+All other treatments render on top:
+- Text-based symbols (AMF, COF, INC, etc.)
+- Structural markers (FMC, POC, BRIDGE)
+- Whole tooth markers (MIS, UNE, RCT)
+
+### Rendering Order
+
+```javascript
+Odontogram.prototype.redraw = function() {
+  // 1. Clear canvas
+  ctx.clearRect(0, 0, width, height)
+  
+  // 2. Draw background (tooth grid)
+  if (this.background) {
+    ctx.drawImage(this.background.image, ...)
+  }
+  
+  // 3. Draw hover effects
+  for (var i = 0; i < this.hoverGeoms.length; i++) {
+    hoverGeoms.render(ctx)
+  }
+  
+  // 4. First pass: Render painting functions
+  for (var keyCoord in this.geometry) {
+    if (paintingFunctions.includes(geoms[x].name)) {
+      geoms[x].render(ctx)
+    }
+  }
+  
+  // 5. Second pass: Render symbols and markers
+  for (var keyCoord in this.geometry) {
+    if (!paintingFunctions.includes(geoms[x].name)) {
+      geoms[x].render(ctx)
+    }
+  }
+  
+  // 6. Draw active selection
+  if (this.active_geometry) {
+    this.active_geometry.render(ctx)
+  }
+}
+```
+
+## Main Components
+
+### Odontogram Class
+
+The main class that manages the entire odontogram:
+
+```javascript
+function Odontogram(jqEl, settings) {
+  this.jquery = jqEl
+  this.canvas = jqEl.get(0)
+  this.context = jqEl.get(0).getContext('2d')
+  this.settings = settings
+  this.mode = ODONTOGRAM_MODE_DEFAULT
+  this.hoverGeoms = []
+  this.geometry = {}  // Stores all treatments
+  this.active_geometry = null
+  this.mode_bridge_coords = []
+  this.teeth = {}  // Tooth coordinate mapping
+  
+  this._drawBackground()
+  return this
+}
+```
+
+### Tooth Coordinate System
+
+Each tooth is mapped with precise coordinates for its surfaces:
+
+```javascript
+this.teeth[key] = {
+  num: '18',  // FDI number
+  bigBoxSize: 50,
+  smallBoxSize: 25,
+  x1: 100, y1: 100,  // Top-left corner
+  x2: 150, y2: 150,  // Bottom-right corner
+  cx: 125, cy: 125,  // Center point
+  
+  // Surface coordinates
+  top: { tl, tr, br, bl },
+  right: { tl, tr, br, bl },
+  bottom: { tl, tr, br, bl },
+  left: { tl, tr, br, bl },
+  middle: { tl, tr, br, bl }
+}
+```
+
+### Event System
+
+The plugin handles mouse events for user interaction:
+
+- **mousemove**: Shows hover effects on tooth surfaces
+- **click**: Applies the current mode's treatment to clicked surface
+- **change**: Fires when geometry is modified (custom jQuery event)
+
+## Layer System
+
+The plugin supports a dual-layer annotation system:
+
+- **Pre-existing layer** (`pre`): Red color (#FF0000)
+- **Required layer** (`req`): Blue color (#0066FF)
+
+Most treatments respect the layer system and change color based on the current annotation layer. Some pathology treatments (like `CARIES_UNTREATABLE`) maintain fixed colors regardless of layer.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Initialization" icon="play" href="/api/initialization">
+    Learn how to initialize and configure the plugin
+  </Card>
+  <Card title="Methods" icon="code" href="/api/methods">
+    Explore available plugin methods
+  </Card>
+  <Card title="Treatment Codes" icon="tooth" href="/api/treatment-codes">
+    View all treatment mode constants
+  </Card>
+</CardGroup>

@@ -1,0 +1,414 @@
+---
+title: 'Treatment Types'
+description: 'Complete list of available dental treatments, their codes, symbols, and usage'
+icon: 'tooth'
+---
+
+## Available Treatments
+
+The Dental Odontogram application supports 18 different treatment types, each with a unique mode constant, visual symbol, and application method.
+
+## Treatment Mode Constants
+
+Treatments are identified by numeric constants defined in `jquery.odontogram.js`:
+
+```javascript
+// Treatment mode constants
+var ODONTOGRAM_MODE_HAPUS = 100          // Delete
+var ODONTOGRAM_MODE_DEFAULT = 0          // Default (no treatment)
+var ODONTOGRAM_MODE_AMF = 1              // Amalgam filling
+var ODONTOGRAM_MODE_COF = 2              // Composite filling (Obturación)
+var ODONTOGRAM_MODE_FIS = 3              // Pit and fissure sealant
+var ODONTOGRAM_MODE_NVT = 4              // Deep groove (Surco Profundo)
+var ODONTOGRAM_MODE_RCT = 5              // Root canal treatment
+var ODONTOGRAM_MODE_NON = 6              // Tooth unknown status
+var ODONTOGRAM_MODE_UNE = 7              // Un-erupted tooth
+var ODONTOGRAM_MODE_PRE = 8              // Partial eruption (Paradentosis)
+var ODONTOGRAM_MODE_ANO = 9              // Anomaly
+var ODONTOGRAM_MODE_CARIES = 10          // Treatable caries
+var ODONTOGRAM_MODE_CARIES_UNTREATABLE = 27  // Untreatable caries
+var ODONTOGRAM_MODE_CFR = 11             // Extraction indicated
+var ODONTOGRAM_MODE_FMC = 12             // Removable prosthesis
+var ODONTOGRAM_MODE_POC = 13             // Porcelain crown
+var ODONTOGRAM_MODE_RRX = 14             // Root remnant
+var ODONTOGRAM_MODE_MIS = 15             // Missing tooth
+var ODONTOGRAM_MODE_IPX = 16             // Implant
+var ODONTOGRAM_MODE_FRM_ACR = 17         // Pivot
+var ODONTOGRAM_MODE_BRIDGE = 18          // Bridge
+var ODONTOGRAM_MODE_SIL = 28             // Sealant
+var ODONTOGRAM_MODE_INC = 29             // Inlay
+var ODONTOGRAM_MODE_ORT = 30             // Orthodontics
+var ODONTOGRAM_MODE_RES = 31             // Restoration
+var ODONTOGRAM_MODE_REF = 32             // Filtered restoration
+```
+
+## Treatment Categories
+
+### Surface-Level Treatments
+
+These treatments are applied to specific tooth surfaces (top, bottom, left, right, middle):
+
+<AccordionGroup>
+  <Accordion title="Caries - Treatable" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_CARIES` (10)
+    
+    **Symbol**: Blue filled area
+    
+    **Code**:
+    ```javascript
+    function CARIES(vertices, options) {
+      this.name = 'CARIES'
+      this.options = $.extend({ fillStyle: '#6896ecff' }, options)
+    }
+    ```
+    
+    **Usage**: Click on affected tooth surface. Fills the surface with blue color.
+    
+    **Layer Support**: Yes (red for pre-existing, blue for required in notes)
+  </Accordion>
+
+  <Accordion title="Obturación (Composite Filling)" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_COF` (2)
+    
+    **Symbol**: `/Ob` text on surface
+    
+    **Code**:
+    ```javascript
+    function COF(vertices, options) {
+      this.name = 'COF'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({
+        font: 'bold 16px Arial',
+        color: getColorForTreatment('COF', this.layer)
+      }, options)
+    }
+    ```
+    
+    **Usage**: Select treatment, click tooth surface to mark filled area.
+    
+    **Layer Support**: Yes (displays in red or blue based on layer)
+  </Accordion>
+
+  <Accordion title="Surco Profundo (Deep Groove)" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_NVT` (4)
+    
+    **Symbol**: `/Sp` text on surface
+    
+    **Code**:
+    ```javascript
+    function NVT(vertices, options) {
+      this.name = 'NVT'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({
+        font: 'bold 16px Arial',
+        color: getColorForTreatment('NVT', this.layer)
+      }, options)
+    }
+    ```
+    
+    **Layer Support**: Yes (red/blue based on layer)
+  </Accordion>
+
+  <Accordion title="Incrustación (Inlay)" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_INC` (29)
+    
+    **Symbol**: `I` text on surface
+    
+    **Layer Support**: Yes (red/blue based on layer)
+  </Accordion>
+
+  <Accordion title="Restauración (Restoration)" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_RES` (31)
+    
+    **Symbol**: Red filled triangle on surface
+    
+    **Code**:
+    ```javascript
+    function RES(vertices, options) {
+      this.name = 'RES'
+      this.options = $.extend({ fillStyle: '#dc3545' }, options)
+    }
+    ```
+    
+    **Note**: Always displays in red on the odontogram, layer system applies to notes only
+  </Accordion>
+
+  <Accordion title="Restauración Filtrada (Filtered Restoration)" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_REF` (32)
+    
+    **Symbol**: `/Rf` text on surface
+    
+    **Layer Support**: Yes (red/blue based on layer)
+  </Accordion>
+</AccordionGroup>
+
+### Whole-Tooth Treatments
+
+These treatments apply to the entire tooth:
+
+<AccordionGroup>
+  <Accordion title="Diente Ausente (Missing Tooth)" icon="xmark">
+    **Mode**: `ODONTOGRAM_MODE_MIS` (15)
+    
+    **Symbol**: Red `X` over entire tooth
+    
+    **Code**:
+    ```javascript
+    function MIS(vertices, options) {
+      this.name = 'MIS'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({
+        strokeStyle: '#FF0000'  // Always RED in odontogram
+      }, options)
+    }
+    ```
+    
+    **Usage**: Click on tooth to mark as missing.
+    
+    **Note**: Always displays in red, but layer system applies to data export
+  </Accordion>
+
+  <Accordion title="Diente No Erupcionado (Un-erupted)" icon="seedling">
+    **Mode**: `ODONTOGRAM_MODE_UNE` (7)
+    
+    **Symbol**: Blue `X` over entire tooth
+    
+    **Code**:
+    ```javascript
+    function UNE(vertices, options) {
+      this.name = 'UNE'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({
+        strokeStyle: '#0066FF'  // Always BLUE in odontogram
+      }, options)
+    }
+    ```
+    
+    **Note**: Always blue visual, layer system for notes only
+  </Accordion>
+
+  <Accordion title="Diente Indicado para Extracción" icon="minus">
+    **Mode**: `ODONTOGRAM_MODE_CFR` (11)
+    
+    **Symbol**: `=` symbol in center of tooth
+    
+    **Layer Support**: Yes (red/blue based on layer)
+  </Accordion>
+
+  <Accordion title="Paradentosis" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_PRE` (8)
+    
+    **Symbol**: `Pd` text below tooth
+    
+    **Code**:
+    ```javascript
+    function PRE(vertices, options) {
+      this.name = 'PRE'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({ 
+        fillStyle: getColorForTreatment('PRE', this.layer), 
+        fontsize: 16 
+      }, options)
+    }
+    ```
+    
+    **Layer Support**: Yes (red/blue based on layer)
+  </Accordion>
+
+  <Accordion title="Corona (Crown)" icon="crown">
+    **Mode**: `ODONTOGRAM_MODE_POC` (13)
+    
+    **Symbol**: Circle `○` in center of tooth
+    
+    **Code**:
+    ```javascript
+    function POC(vertices, options) {
+      this.name = 'POC'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({
+        strokeStyle: getColorForTreatment('POC', this.layer),
+        fillStyle: 'transparent',
+        lineWidth: 3
+      }, options)
+    }
+    ```
+    
+    **Layer Support**: Yes (outline color changes with layer)
+  </Accordion>
+
+  <Accordion title="Prótesis Removible (Removable Prosthesis)" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_FMC` (12)
+    
+    **Symbol**: Square `□` outline over tooth
+    
+    **Layer Support**: Yes (outline color changes with layer)
+  </Accordion>
+
+  <Accordion title="Pivot" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_FRM_ACR` (17)
+    
+    **Symbol**: `P` text below tooth
+    
+    **Layer Support**: Yes (text color changes with layer)
+  </Accordion>
+
+  <Accordion title="Implante (Implant)" icon="plus">
+    **Mode**: `ODONTOGRAM_MODE_IPX` (16)
+    
+    **Symbol**: `IM` text below tooth
+    
+    **Layer Support**: Yes (text color changes with layer)
+  </Accordion>
+
+  <Accordion title="Tratamiento de Conducto (Root Canal)" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_RCT` (5)
+    
+    **Symbol**: Filled triangle `▼` below tooth
+    
+    **Code**:
+    ```javascript
+    function RCT(vertices, options) {
+      this.name = 'RCT'
+      this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+      this.options = $.extend({
+        strokeStyle: getColorForTreatment('RCT', this.layer),
+        fillStyle: getColorForTreatment('RCT', this.layer),
+        height: 25
+      }, options)
+    }
+    ```
+    
+    **Layer Support**: Yes (triangle color changes with layer)
+  </Accordion>
+
+  <Accordion title="Ortodoncia (Orthodontics)" icon="tooth">
+    **Mode**: `ODONTOGRAM_MODE_ORT` (30)
+    
+    **Symbol**: `~` wave symbol on top/bottom surfaces
+    
+    **Layer Support**: Yes (symbol color changes with layer)
+  </Accordion>
+</AccordionGroup>
+
+### Multi-Tooth Treatments
+
+<Accordion title="Puente (Bridge)" icon="bridge">
+  **Mode**: `ODONTOGRAM_MODE_BRIDGE` (18)
+  
+  **Symbol**: `Π` shaped connector between teeth
+  
+  **Code**:
+  ```javascript
+  function BRIDGE(startVert, endVert, options) {
+    this.name = 'BRIDGE'
+    this.startVert = startVert
+    this.endVert = endVert
+    this.layer = options && options.layer ? options.layer : CURRENT_ANNOTATION_LAYER
+    this.options = $.extend({
+      strokeStyle: getColorForTreatment('BRIDGE', this.layer),
+      lineWidth: 3
+    }, options)
+  }
+  ```
+  
+  **Usage**: Click first tooth, then click second tooth to create bridge connection.
+  
+  **Layer Support**: Yes (line color changes with layer)
+</Accordion>
+
+## Layer Color System
+
+Most treatments support the dual-layer color system:
+
+```javascript
+var LAYER_COLORS = {
+  pre: '#FF0000',  // Red for pre-existing
+  req: '#0066FF'   // Blue for required
+}
+
+function getColorForTreatment(treatmentName, layer) {
+  if (shouldUseLayerColor(treatmentName)) {
+    return LAYER_COLORS[layer] || '#000'
+  }
+  return '#000'  // Default color for pathologies
+}
+```
+
+### Exceptions
+
+Some treatments always display in specific colors:
+
+- **CARIES** - Always blue (`#6896ecff`)
+- **CARIES_UNTREATABLE** - Always yellow (`#FFC107`)
+- **MIS** - Always red (`#FF0000`) on canvas
+- **UNE** - Always blue (`#0066FF`) on canvas
+- **RES** - Always red (`#dc3545`) on canvas
+
+<Note>
+Even when treatments display in fixed colors on the odontogram, the layer system (pre-existing vs. required) is still tracked in the data export and notes.
+</Note>
+
+## Applying Treatments
+
+### Basic Application Flow
+
+1. **Select annotation layer** - Choose "Prestación Preexistente" (red) or "Prestación Requerida" (blue)
+2. **Click treatment button** - Treatment mode activates (button highlights)
+3. **Click tooth/surface** - Treatment applies with appropriate color
+4. **View in notes** - Treatment appears in notes section categorized by layer
+
+### Surface Positioning
+
+For surface-level treatments, teeth are divided into 5 clickable areas:
+
+- **Top** - Occlusal/incisal surface
+- **Bottom** - Root/cervical area  
+- **Left** - Mesial surface
+- **Right** - Distal surface
+- **Middle** - Central area
+
+### Event Handler
+
+```javascript
+$('[id^="ODONTOGRAM_MODE_"]').click(function() {
+  var modeName = $(this).attr('id')
+  var modeValue = window[modeName]
+  if (typeof modeValue !== 'undefined') {
+    $('#odontogram').odontogram('setMode', modeValue)
+    console.log('🔧 Mode set to:', modeName, 'Value:', modeValue)
+  }
+})
+```
+
+## Treatment Deletion
+
+### Delete Individual Treatments
+
+```javascript
+$('#ODONTOGRAM_MODE_HAPUS').click(function() {
+  $(this).addClass('active')
+  $('#odontogram').odontogram('setMode', ODONTOGRAM_MODE_HAPUS)
+  console.log('🗑️ Delete mode activated')
+})
+```
+
+Activate delete mode, then click on teeth to remove treatments.
+
+### Clear All Treatments
+
+```javascript
+$('#ODONTOGRAM_MODE_DEFAULT').click(function() {
+  if (treatmentCount > 0) {
+    if (confirm('⚠️ ¿Está seguro que desea borrar todos los tratamientos?')) {
+      $('#odontogram').odontogram('clearAll')
+      $('#odontogram').odontogram('setMode', ODONTOGRAM_MODE_DEFAULT)
+    }
+  }
+})
+```
+
+Clears entire odontogram after user confirmation.
+
+<Warning>
+Clearing all treatments cannot be undone. The application will prompt for confirmation before proceeding.
+</Warning>

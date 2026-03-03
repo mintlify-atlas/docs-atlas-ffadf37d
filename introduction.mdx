@@ -1,0 +1,151 @@
+---
+title: Introduction
+description: Welcome to Dental Odontogram - A lightweight clinical charting web application for dental documentation
+---
+
+## Welcome to Dental Odontogram
+
+Dental Odontogram is a lightweight clinical charting web application designed for comprehensive dental documentation and patient care. Built with modern web technologies, it provides an intuitive interface for marking treatments, managing patient records, and generating professional reports.
+
+<CardGroup cols={2}>
+  <Card
+    title="Quick start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running with the odontogram in minutes
+  </Card>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Learn how to set up and serve the application
+  </Card>
+  <Card
+    title="API reference"
+    icon="code"
+    href="/api/plugin-overview"
+  >
+    Explore the jQuery plugin API and methods
+  </Card>
+  <Card
+    title="User guide"
+    icon="book"
+    href="/guide/interface"
+  >
+    Learn how to use the odontogram interface
+  </Card>
+</CardGroup>
+
+## What is Dental Odontogram?
+
+The Dental Odontogram application is a clinical charting system that enables dental professionals to:
+
+- **Document dental conditions** with precise surface-level annotations
+- **Track treatment plans** using dual annotation layers (pre-existing and required)
+- **Generate professional reports** in A4 PNG format with complete treatment details
+- **Export structured data** in JSON format for integration with practice management systems
+- **Manage patient records** with automatic patient name detection and file organization
+
+## Key features
+
+### Dual annotation layers
+
+The application supports two distinct annotation layers to differentiate between existing conditions and planned treatments:
+
+- **Pre-existente (Red)** - Mark existing treatments and conditions already present
+- **Requerido (Blue)** - Indicate treatments that are planned or required
+
+This dual-layer system ensures clear communication between dental professionals and helps track treatment progression over time.
+
+### Surface-aware treatments
+
+The odontogram uses FDI-based anatomical mapping to accurately represent dental surfaces:
+
+- Canvas positions (top/bottom/left/right/middle) automatically map to correct anatomical surfaces
+- Dental surfaces include: vestibular, palatina/lingual, mesial, distal, oclusal/incisal
+- Surface orientation adjusts correctly based on tooth quadrant and FDI number
+- Proper mesial/distal orientation according to international dental standards
+
+### Per-tooth notes
+
+Add detailed clinical notes for individual teeth with:
+
+- Auto-save functionality for seamless workflow
+- Manual save and clear options for precise control
+- Notes included in JSON exports and PNG reports
+- Visual feedback when notes are saved
+
+### Professional reporting
+
+Generate comprehensive A4 PNG reports that include:
+
+- Full odontogram visualization
+- Detailed treatment lists organized by tooth
+- Clinical notes for each tooth
+- Patient information and timestamp
+- Automatic upload to backend systems
+
+### Data export and integration
+
+Export structured JSON data containing:
+
+- Patient name and date
+- Complete tooth-by-tooth treatment details
+- Separate tracking of conditions vs. treatments
+- Layer information (pre-existing vs. required)
+- Clinical notes for each tooth
+
+The application includes a backend upload hook (`POST /api/upload-odontogram`) for seamless integration with practice management systems.
+
+## Treatment support
+
+The application supports a comprehensive range of dental treatments and conditions:
+
+**Conditions**
+- Caries (treatable and untreatable)
+- Paradentosis
+- Deep grooves (Surco Profundo)
+
+**Restorative treatments**
+- Amalgam fillings
+- Composite fillings (Obturación)
+- Inlays (Incrustación)
+- Restorations
+- Filtered restorations
+
+**Prosthetic treatments**
+- Crowns (Porcelain and Metal)
+- Bridges (Puente)
+- Removable prosthetics
+- Pivots
+- Implants
+
+**Other treatments**
+- Root canal treatment
+- Orthodontics
+- Extractions
+- Missing teeth
+- Unerupted teeth
+
+## Technology stack
+
+The application is built using:
+
+- **jQuery** - DOM manipulation and event handling
+- **HTML5 Canvas** - Interactive odontogram rendering
+- **Custom jQuery plugin** - Based on the jquery-odontogram by Adhiana46
+- **JSON data files** - FDI tooth information and anatomical mapping
+- **Node.js backend** (optional) - For file uploads and integrations
+
+<Note>
+The application requires a web server to run properly due to CORS restrictions when loading JSON data files. See the [Installation](/installation) guide for setup instructions.
+</Note>
+
+## Attribution
+
+This project extends and is based on the jQuery odontogram plugin by Adhiana46:
+https://github.com/Adhiana46/jquery-odontogram
+
+Please review the original repository license before redistribution.

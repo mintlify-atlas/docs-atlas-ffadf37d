@@ -1,80 +1,260 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get the Dental Odontogram application running in minutes
 ---
 
-## Get started in three steps
+## Get started with Dental Odontogram
 
-Get your documentation site running locally and make your first customization.
+This guide will walk you through setting up and using the Dental Odontogram application for the first time.
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Serve the application">
+    The application requires a web server to run properly. Start a local server in the project directory:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+    ```bash
+    python3 -m http.server
+    ```
+
+    Or use any other web server of your choice (Node.js http-server, Apache, nginx, etc.).
+  </Step>
+
+  <Step title="Open the application">
+    Navigate to the application in your browser:
+
+    ```
+    http://localhost:8000
+    ```
+
+    The application will load and display the odontogram interface.
+  </Step>
+
+  <Step title="Verify JSON data">
+    Ensure the `dientes_fdi_completo.json` file is available in the same directory as the application. This file contains FDI tooth information and is required for proper functionality.
+
+    The application will automatically load this data on startup.
+  </Step>
+
+  <Step title="Start charting">
+    Use the UI to mark treatments, add notes, and generate reports. Select a treatment type from the left panel and click on tooth surfaces to apply treatments.
+  </Step>
+</Steps>
+
+## Including the scripts
+
+To integrate the odontogram into your own HTML page, include the required scripts in this order:
+
+<CodeGroup>
+
+```html index.html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>Odontograma Dental Profesional</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    <!-- jQuery (required) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    <!-- Odontogram plugin -->
+    <script src="./jquery.odontogram.js"></script>
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    <!-- Application styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Patient information header -->
+    <header class="app-header">
+        <div class="patient-info" id="patientInfo">
+            <div class="patient-header">
+                <span class="patient-label">Nombre del paciente:</span>
+                <span class="patient-name" id="patientName">Cargando paciente...</span>
+            </div>
+        </div>
+    </header>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    <div class="main-container" style="margin-top: 60px;">
+        <!-- Odontogram canvas -->
+        <div class="odontogram-container">
+            <canvas id="odontogram">
+                Tu navegador no soporta canvas. Por favor actualiza tu navegador.
+            </canvas>
+        </div>
+    </div>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    <!-- Application logic -->
+    <script src="./dental-app.js"></script>
+    <script src="patient-display.js"></script>
+</body>
+</html>
+```
 
-### Step 3: Go live
+</CodeGroup>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+<Note>
+The canvas element with `id="odontogram"` is required for the plugin to initialize properly.
+</Note>
+
+## Basic initialization
+
+The odontogram is initialized when the DOM is ready. Here's how the application initializes:
+
+```javascript dental-app.js
+/**
+ * Initialize app when document is ready
+ */
+$(document).ready(function () {
+  console.log('DOM ready, initializing dual-layer dental application...')
+  initApp()
+  setupEventHandlers()
+})
+
+/**
+ * Initialize the odontogram with specified type
+ */
+function initializeOdontogram(type) {
+  console.log('🦷 Initializing odontogram with type:', type)
+
+  // Verify jQuery and plugin are available
+  if (typeof $ === 'undefined') {
+    console.error('❌ jQuery is not loaded')
+    return
+  }
+
+  if (typeof $.fn.odontogram === 'undefined') {
+    console.error('❌ Odontogram plugin is not loaded')
+    return
+  }
+
+  // Get canvas element
+  const $canvas = $('#odontogram')
+  if ($canvas.length === 0) {
+    console.error('❌ Canvas element #odontogram not found')
+    return
+  }
+
+  // Clear existing instance
+  $canvas.off('mousemove click').removeData('odontogram')
+
+  // Configure odontogram options
+  const options = {
+    width: '900px',
+    height: '450px',
+    toothType: type === 'children' ? 'primary' : 'permanent',
+  }
+
+  // Initialize the odontogram
+  $canvas.odontogram('init', options)
+  $canvas.odontogram('clearAll')
+  $canvas.odontogram('setMode', ODONTOGRAM_MODE_DEFAULT)
+
+  console.log('✅ Odontogram initialized successfully')
+}
+```
+
+## Loading dental data
+
+The application loads FDI tooth information from a JSON file:
+
+```javascript dental-app.js
+/**
+ * Load dental data from JSON file
+ */
+async function loadDentalData() {
+  try {
+    const response = await fetch('./dientes_fdi_completo.json')
+    dentalData = await response.json()
+    console.log('Dental data loaded successfully')
+  } catch (error) {
+    console.error('Error loading dental data:', error)
+  }
+}
+
+/**
+ * Get tooth information by FDI number
+ */
+function getToothInfo(fdi) {
+  if (!dentalData || !dentalData.dientes) return null
+  
+  const fdiNumber = parseInt(fdi)
+  return dentalData.dientes.find((tooth) => tooth.fdi === fdiNumber)
+}
+```
+
+## Using the interface
+
+### Select dentition type
+
+Choose between adult and children dentition using the radio buttons:
+
+- **Adulto** - Permanent teeth (FDI 11-48)
+- **Niño** - Primary teeth (FDI 51-85)
+
+### Select annotation layer
+
+Choose which layer to annotate:
+
+- **Prestación Preexistente** (Red) - Existing treatments
+- **Prestación Requerida** (Blue) - Required treatments
+
+### Mark treatments
+
+1. Click a treatment button from the left panel
+2. Click on tooth surfaces in the odontogram to apply the treatment
+3. The treatment will be marked in red (pre-existing) or blue (required) based on your layer selection
+
+### Add notes
+
+Click on a tooth to view its details and add clinical notes in the notes section below the odontogram.
+
+### Export data
+
+Click the **Exportar** button to download a JSON file containing all treatment data:
+
+```json
+{
+  "fecha": "2026-03-03",
+  "nombre": "Patient Name",
+  "piezas": [
+    {
+      "pieza": 11,
+      "condiciones": [],
+      "prestacion_requerida": ["Obturación - Cara/s: vestibular, mesial"],
+      "prestacion_preexistente": ["Corona"],
+      "notas": "Clinical notes for this tooth"
+    }
+  ]
+}
+```
+
+### Generate report
+
+Click the **Descargar** button to generate a professional A4 PNG report with:
+
+- Complete odontogram visualization
+- Treatment details for each tooth
+- Clinical notes
+- Patient information and timestamp
+
+<Warning>
+The download/upload functionality requires a backend endpoint at `/api/upload-odontogram`. See the [API Reference](/api-reference) for implementation details.
+</Warning>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card
+    title="Installation guide"
+    icon="download"
+    href="/installation"
+  >
+    Learn about dependencies and file structure
+  </Card>
+  <Card
+    title="API reference"
+    icon="code"
+    href="/api/plugin-overview"
+  >
+    Explore the jQuery plugin API
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,0 +1,235 @@
+---
+title: 'Upload API Endpoint'
+description: 'Upload odontogram images and data to Cloudinary and Airtable'
+---
+
+## Overview
+
+The upload endpoint accepts odontogram images (PNG format) along with patient data in JSON format, uploads the image to Cloudinary, and stores both the image reference and formatted notes in Airtable.
+
+## Endpoint
+
+```
+POST /api/upload-odontogram
+```
+
+## Request Format
+
+The endpoint accepts multipart form data with the following fields:
+
+<ParamField path="file" type="file" required>
+  PNG image file of the odontogram (max size: 10MB)
+</ParamField>
+
+<ParamField path="recordId" type="string" required>
+  The Airtable record ID of the patient
+</ParamField>
+
+<ParamField path="fieldName" type="string" required>
+  The Airtable field name where the image attachment will be stored
+</ParamField>
+
+<ParamField path="jsonData" type="string">
+  JSON string containing odontogram data with patient information and dental findings
+</ParamField>
+
+<ParamField path="jsonFieldName" type="string" default="notas-odontograma-paciente">
+  The Airtable field name where formatted notes will be appended
+</ParamField>
+
+### Example JSON Data Structure
+
+```json
+{
+  "nombre": "Juan Pérez",
+  "piezas": [
+    {
+      "pieza": "11",
+      "condiciones": ["Caries"],
+      "prestacion_preexistente": ["Corona"],
+      "prestacion_requerida": ["Endodoncia"],
+      "notas": "Requiere atención urgente"
+    }
+  ]
+}
+```
+
+## Response Format
+
+### Success Response (200)
+
+```json
+{
+  "success": true,
+  "message": "Complete odontogram data uploaded! Image + formatted text appended.",
+  "recordId": "recABCDEF123456",
+  "attachmentUrl": "https://dl.airtable.com/.attachments/...",
+  "cloudinaryUrl": "https://res.cloudinary.com/your-cloud/image/upload/...",
+  "fileName": "odontogram.png",
+  "service": "Cloudinary FREE",
+  "totalAttachments": 3,
+  "jsonAppended": true,
+  "jsonFieldName": "notas-odontograma-paciente"
+}
+```
+
+### Error Responses
+
+<ResponseField name="error" type="string">
+  Error message describing what went wrong
+</ResponseField>
+
+<ResponseField name="details" type="string">
+  Additional error details (only included in 500 errors)
+</ResponseField>
+
+#### 400 Bad Request
+```json
+{
+  "error": "Missing required fields"
+}
+```
+
+#### 405 Method Not Allowed
+```json
+{
+  "error": "Method not allowed"
+}
+```
+
+#### 500 Internal Server Error
+```json
+{
+  "error": "Upload failed",
+  "details": "Cloudinary error: Invalid credentials"
+}
+```
+
+Or if credentials are not configured:
+```json
+{
+  "error": "Airtable credentials not configured"
+}
+```
+```json
+{
+  "error": "Cloudinary credentials not configured"
+}
+```
+
+## CORS Configuration
+
+The endpoint is configured with the following CORS headers:
+
+```javascript
+res.setHeader('Access-Control-Allow-Origin', '*')
+res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+```
+
+This allows requests from any origin. For production, consider restricting the `Access-Control-Allow-Origin` to your specific domain.
+
+## Error Handling
+
+The endpoint includes comprehensive error handling:
+
+### Credential Validation
+
+Before processing, the endpoint validates that all required environment variables are configured:
+
+```javascript
+if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+  return res
+    .status(500)
+    .json({ error: 'Airtable credentials not configured' })
+}
+
+if (
+  !process.env.CLOUDINARY_CLOUD_NAME ||
+  !process.env.CLOUDINARY_API_KEY ||
+  !process.env.CLOUDINARY_API_SECRET
+) {
+  return res
+    .status(500)
+    .json({ error: 'Cloudinary credentials not configured' })
+}
+```
+
+### File Upload Limits
+
+The endpoint enforces a maximum file size of 10MB:
+
+```javascript
+const form = new IncomingForm({
+  maxFileSize: 10 * 1024 * 1024,
+  keepExtensions: true,
+})
+```
+
+### Cleanup
+
+Temporary files are automatically cleaned up after processing:
+
+```javascript
+try {
+  fs.unlinkSync(file.filepath)
+  console.log('🧹 Temp file cleaned up')
+} catch (cleanupError) {
+  console.warn('⚠️ Could not clean temp file:', cleanupError.message)
+}
+```
+
+## Code Example
+
+### Making a Request
+
+```javascript
+const formData = new FormData()
+formData.append('file', pngBlob, 'odontogram.png')
+formData.append('recordId', 'recABCDEF123456')
+formData.append('fieldName', 'odontograma-imagenes')
+formData.append('jsonData', JSON.stringify({
+  nombre: 'Juan Pérez',
+  piezas: [
+    {
+      pieza: '11',
+      condiciones: ['Caries'],
+      prestacion_requerida: ['Endodoncia'],
+      notas: 'Requiere atención urgente'
+    }
+  ]
+}))
+formData.append('jsonFieldName', 'notas-odontograma-paciente')
+
+const response = await fetch('/api/upload-odontogram', {
+  method: 'POST',
+  body: formData
+})
+
+const result = await response.json()
+console.log('Upload result:', result)
+```
+
+## How It Works
+
+1. **Parse Form Data** - Extracts file, recordId, fieldName, and optional JSON data from multipart form
+2. **Upload to Cloudinary** - Uploads PNG image to Cloudinary with metadata
+3. **Fetch Existing Data** - Retrieves current attachments and notes from Airtable record
+4. **Append Attachment** - Adds new Cloudinary URL to existing attachments array
+5. **Format Notes** - Converts JSON data to formatted text and appends to existing notes
+6. **Update Airtable** - Updates record with new attachments and formatted notes
+7. **Cleanup** - Removes temporary file from server
+
+## Next.js Configuration
+
+The endpoint disables default body parsing to handle multipart form data:
+
+```javascript
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+```
+
+This is required when using `formidable` to parse file uploads.

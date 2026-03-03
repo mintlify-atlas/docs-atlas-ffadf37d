@@ -1,0 +1,237 @@
+---
+title: 'Interface Overview'
+description: 'Understanding the main interface elements and navigation of the Dental Odontogram application'
+icon: 'window'
+---
+
+## Main Interface Elements
+
+The Dental Odontogram application features a clean, professional layout designed for efficient dental charting and treatment documentation.
+
+### Application Layout
+
+The interface is divided into three main sections:
+
+1. **Patient Header** - Displays current patient information
+2. **Controls Column** (left side, 20% width) - Treatment selection buttons
+3. **Content Area** (right side, 80% width) - Odontogram canvas and controls
+
+## Patient Information Header
+
+Located at the top of the application:
+
+```html
+<header class="app-header">
+  <div class="patient-info" id="patientInfo">
+    <div class="patient-header">
+      <span class="patient-label">Nombre del paciente:</span>
+      <span class="patient-name" id="patientName">Cargando paciente...</span>
+    </div>
+  </div>
+</header>
+```
+
+Displays the current patient's name, loaded from the URL parameter or Airtable record.
+
+## Controls Column
+
+### Treatment Controls Panel
+
+The left sidebar contains all available treatments organized in a vertical button grid:
+
+<CodeGroup>
+```html Treatment Buttons
+<div class="controls-panel">
+  <div class="button-grid">
+    <!-- Treatment buttons with symbols and names -->
+    <button type="button" id="ODONTOGRAM_MODE_MIS">
+      <span class="symbol" style="color: red;">X</span>
+      <span class="name">Diente Ausente</span>
+    </button>
+    <!-- ... more treatment buttons ... -->
+  </div>
+</div>
+```
+</CodeGroup>
+
+Each treatment button displays:
+- **Visual symbol** - The symbol that appears on the odontogram
+- **Treatment name** - Spanish description of the treatment
+
+### Action Controls
+
+Below the treatment buttons are utility controls:
+
+```html
+<div class="control-group">
+  <button id="ODONTOGRAM_MODE_HAPUS" class="treatment-btn delete-btn">
+    <span class="icon">🗑️</span>
+    <span class="name">Borrar</span>
+  </button>
+  <button id="ODONTOGRAM_MODE_DEFAULT" class="treatment-btn default-btn">
+    <span class="icon">🧹</span>
+    <span class="name">Limpiar</span>
+  </button>
+</div>
+```
+
+- **Borrar (Delete)** - Click to activate delete mode, then click teeth to remove treatments
+- **Limpiar (Clear)** - Clears all treatments from the entire odontogram (with confirmation)
+
+### Export Controls
+
+```html
+<div class="control-group">
+  <button id="download" class="treatment-btn download-btn">
+    <span class="icon">💾</span>
+    <span class="name">Descargar</span>
+  </button>
+  <button id="exportData" class="treatment-btn export-btn">
+    <span class="icon">📊</span>
+    <span class="name">Exportar</span>
+  </button>
+</div>
+```
+
+- **Descargar** - Generates and uploads professional PNG report to Airtable
+- **Exportar** - Downloads odontogram data as JSON file
+
+## Content Area
+
+### Dentition Type Selector
+
+Radio buttons to switch between adult and children's teeth:
+
+```html
+<div class="dentition-selector">
+  <h3>Tipo de Odontograma</h3>
+  <div class="radio-group">
+    <input type="radio" id="dentition-adult" name="dentition-type" 
+           value="adult" checked>
+    <label for="dentition-adult">Adulto</label>
+    
+    <input type="radio" id="dentition-children" name="dentition-type" 
+           value="children">
+    <label for="dentition-children">Niño</label>
+  </div>
+</div>
+```
+
+- **Adulto** - Shows permanent dentition (teeth 11-48, 32 teeth total)
+- **Niño** - Shows primary dentition (teeth 51-85, 20 teeth total)
+
+### Annotation Layer Selector
+
+Toggle between pre-existing and required treatment layers:
+
+```html
+<div class="prestacion-selector">
+  <h3>Tipo de Prestación</h3>
+  <div class="radio-group">
+    <input type="radio" id="layer-pre" name="annotation-layer" 
+           value="pre" checked>
+    <label for="layer-pre" class="layer-label pre-existing">
+      <span class="layer-indicator pre"></span>
+      Prestación Preexistente
+    </label>
+    
+    <input type="radio" id="layer-req" name="annotation-layer" 
+           value="req">
+    <label for="layer-req" class="layer-label required">
+      <span class="layer-indicator req"></span>
+      Prestación Requerida
+    </label>
+  </div>
+</div>
+```
+
+<Info>
+The layer selector determines the color of new annotations:
+- **Pre-existing (red)** - Treatments already present in the patient's mouth
+- **Required (blue)** - Treatments needed or planned
+</Info>
+
+### Odontogram Canvas
+
+The main interactive canvas element:
+
+```html
+<div class="odontogram-container">
+  <canvas id="odontogram">
+    Tu navegador no soporta canvas. Por favor actualiza tu navegador.
+  </canvas>
+</div>
+```
+
+Initialized with jQuery plugin:
+
+```javascript
+const options = {
+  width: '900px',
+  height: '450px',
+  toothType: type === 'children' ? 'primary' : 'permanent'
+}
+
+$('#odontogram').odontogram('init', options)
+```
+
+### Notes Section
+
+Displays treatment data and per-tooth notes:
+
+```html
+<div class="notes-row">
+  <div class="notes-section">
+    <h3>Notas</h3>
+    <div id="odontogramData" class="odontogram-data-content">
+      <p>Los datos aparecerán aquí cuando se marquen los dientes</p>
+    </div>
+  </div>
+</div>
+```
+
+This section dynamically updates to show:
+- Treatment summary for each marked tooth
+- Editable text areas for clinical notes
+- Layer categorization (pre-existing vs. required)
+
+## Navigation Flow
+
+### Typical Workflow
+
+1. **Select dentition type** - Choose adult or children's teeth
+2. **Select annotation layer** - Choose pre-existing or required
+3. **Select treatment** - Click a treatment button in the controls column
+4. **Apply to teeth** - Click on tooth surfaces in the canvas
+5. **Add notes** - Enter clinical observations in the notes section
+6. **Export/Download** - Generate reports when documentation is complete
+
+### Keyboard & Mouse Interactions
+
+- **Click treatment button** - Activates treatment mode (button highlights)
+- **Click tooth surface** - Applies selected treatment to that surface
+- **Click delete mode** - Enables deletion, then click teeth to remove treatments
+- **Type in notes** - Auto-saves after 2 seconds of inactivity
+
+<Warning>
+The "Limpiar" (Clear All) button will prompt for confirmation before deleting all treatments. This action cannot be undone.
+</Warning>
+
+## Interface Styling
+
+The application uses a clean, professional color scheme:
+
+- **Primary colors**: Clinical whites and grays
+- **Treatment indicators**: Red (pre-existing) and blue (required)
+- **Interactive elements**: Blue highlights for active buttons
+- **Status indicators**: Green (saved), yellow (editing)
+
+## Responsive Design
+
+The interface maintains fixed proportions:
+- Controls column: 20% width
+- Content area: 80% width
+- Canvas: 900px × 450px
+- Header: Fixed 60px height with patient info
+
+This layout ensures consistent display across different screen sizes while maintaining usability for dental professionals.

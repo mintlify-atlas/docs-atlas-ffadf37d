@@ -1,0 +1,284 @@
+---
+title: FDI tooth mapping
+description: Anatomically-correct surface mapping using FDI notation
+---
+
+The Dental Odontogram uses the FDI (Fédération Dentaire Internationale) World Dental Federation notation system for tooth identification and surface mapping. This ensures anatomically-correct treatment placement.
+
+## FDI notation system
+
+The FDI system uses two-digit numbers to identify teeth:
+
+- **First digit**: Quadrant (1-4 for permanent, 5-8 for deciduous)
+- **Second digit**: Position within quadrant (1-8)
+
+### Quadrant numbering
+
+```
+Permanent teeth:
+  18 17 16 15 14 13 12 11 | 21 22 23 24 25 26 27 28
+  ------------------------------------------------
+  48 47 46 45 44 43 42 41 | 31 32 33 34 35 36 37 38
+
+Quadrant 1: Upper right (11-18)
+Quadrant 2: Upper left (21-28)
+Quadrant 3: Lower left (31-38)
+Quadrant 4: Lower right (41-48)
+```
+
+## Surface-aware treatment mapping
+
+The application maps canvas click positions to anatomical tooth surfaces based on the tooth's FDI number and quadrant location.
+
+### Canvas positions
+
+Each tooth on the canvas has 5 clickable regions:
+
+- **Top**: Upper surface
+- **Bottom**: Lower surface
+- **Left**: Left side
+- **Right**: Right side
+- **Middle**: Center
+
+### Anatomical surfaces
+
+Dental surfaces use standardized terminology:
+
+- **Vestibular**: Facing the lips/cheeks (facial)
+- **Palatina**: Facing the palate (upper)
+- **Lingual**: Facing the tongue (lower)
+- **Mesial**: Toward the midline
+- **Distal**: Away from the midline
+- **Oclusal**: Biting surface (molars/premolars)
+- **Incisal**: Cutting edge (incisors/canines)
+
+## Surface mapping logic
+
+The `getCorrectSurfaceMapping()` function maps canvas positions to anatomical surfaces based on FDI quadrant:
+
+```javascript
+// From dental-app.js
+function getCorrectSurfaceMapping(fdi) {
+  const toothInfo = getToothInfo(fdi)
+  if (!toothInfo) {
+    return {
+      top: 'vestibular',
+      bottom: 'palatina',
+      left: 'mesial',
+      right: 'distal',
+      middle: 'oclusal',
+    }
+  }
+
+  const quadrant = Math.floor(fdi / 10)
+  const tipo = toothInfo.tipo
+
+  // Upper arch (quadrants 1, 2, 5, 6)
+  const isUpper = [1, 2, 5, 6].includes(quadrant)
+  // Right side (quadrants 1, 4, 5, 8)
+  const isRight = [1, 4, 5, 8].includes(quadrant)
+
+  // Determine biting surface name based on tooth type
+  const biting =
+    tipo === 'Incisivo' || tipo === 'Canino' ? 'incisal' : 'oclusal'
+
+  return {
+    top: 'vestibular',
+    bottom: isUpper ? 'palatina' : 'lingual',
+    left: isRight ? 'mesial' : 'distal',
+    right: isRight ? 'distal' : 'mesial',
+    middle: biting,
+  }
+}
+```
+
+### Quadrant-specific mapping
+
+<Tabs>
+  <Tab title="Quadrant 1 (Upper Right)">
+    **Tooth 11-18**
+    
+    - Top → Vestibular
+    - Bottom → Palatina
+    - Left → Mesial (toward midline)
+    - Right → Distal (away from midline)
+    - Middle → Oclusal/Incisal
+  </Tab>
+  
+  <Tab title="Quadrant 2 (Upper Left)">
+    **Tooth 21-28**
+    
+    - Top → Vestibular
+    - Bottom → Palatina
+    - Left → Distal (away from midline)
+    - Right → Mesial (toward midline)
+    - Middle → Oclusal/Incisal
+  </Tab>
+  
+  <Tab title="Quadrant 3 (Lower Left)">
+    **Tooth 31-38**
+    
+    - Top → Vestibular
+    - Bottom → Lingual
+    - Left → Distal (away from midline)
+    - Right → Mesial (toward midline)
+    - Middle → Oclusal/Incisal
+  </Tab>
+  
+  <Tab title="Quadrant 4 (Lower Right)">
+    **Tooth 41-48**
+    
+    - Top → Vestibular
+    - Bottom → Lingual
+    - Left → Mesial (toward midline)
+    - Right → Distal (away from midline)
+    - Middle → Oclusal/Incisal
+  </Tab>
+</Tabs>
+
+## Tooth data structure
+
+Tooth information is loaded from `dientes_fdi_completo.json`:
+
+```json
+{
+  "fdi": 11,
+  "tipo": "Incisivo",
+  "nombre": "Incisivo Central Superior Derecho",
+  "arco": "Superior",
+  "lado": "Derecho",
+  "cuadrante": 1,
+  "caras": ["vestibular", "palatina", "mesial", "distal", "incisal"]
+}
+```
+
+### Loading tooth data
+
+```javascript
+// From dental-app.js
+async function loadDentalData() {
+  try {
+    const response = await fetch('./dientes_fdi_completo.json')
+    dentalData = await response.json()
+    console.log('Dental data loaded successfully')
+  } catch (error) {
+    console.error('Error loading dental data:', error)
+  }
+}
+
+function getToothInfo(fdi) {
+  if (!dentalData || !dentalData.dientes) return null
+  const fdiNumber = parseInt(fdi)
+  return dentalData.dientes.find((tooth) => tooth.fdi === fdiNumber)
+}
+```
+
+## Surface-specific treatments
+
+Certain treatments can be applied to specific surfaces:
+
+- **Caries**: Can affect individual surfaces
+- **Obturación (filling)**: Applied to specific surfaces
+- **Incrustación**: Surface-specific
+- **Surco Profundo**: Usually oclusal/incisal
+- **Restauración**: Surface-specific
+
+### Grouping treatments by surface
+
+```javascript
+// From dental-app.js (exportOdontogramData)
+function groupTreatmentsBySurface(treatmentList) {
+  const grouped = {}
+  
+  treatmentList.forEach((treatment) => {
+    const treatmentName = getTreatmentName(treatment.name)
+    const withSides = ['CARIES', 'CARIES_UNTREATABLE', 'REF', 'NVT', 'SIL', 'RES', 'AMF', 'COF', 'INC']
+    
+    if (!grouped[treatment.name]) {
+      grouped[treatment.name] = {
+        nombre: treatmentName,
+        superficies: [],
+        usa_superficies: withSides.includes(treatment.name)
+      }
+    }
+    
+    // Collect surface information
+    if (withSides.includes(treatment.name) && treatment.pos && toothInfo) {
+      const correctMapping = getCorrectSurfaceMapping(toothNum)
+      const anatomical = correctMapping[fullCanvasPosition]
+      
+      if (anatomical && !grouped[treatment.name].superficies.includes(anatomical)) {
+        grouped[treatment.name].superficies.push(anatomical)
+      }
+    }
+  })
+  
+  return grouped
+}
+```
+
+This produces output like:
+
+```json
+{
+  "nombre": "Obturación",
+  "superficies": ["vestibular", "mesial"],
+  "usa_superficies": true
+}
+```
+
+## Mesial/distal orientation
+
+<Note>
+  The key feature of FDI mapping is **automatic mesial/distal correction**. The system knows that mesial always points toward the midline, regardless of whether the tooth is on the left or right side.
+</Note>
+
+### Example: Tooth 11 vs Tooth 21
+
+<Tabs>
+  <Tab title="Tooth 11 (Upper right)">
+    Clicking the **left** side of the canvas:
+    - Canvas position: `left`
+    - Quadrant 1 mapping: `left → mesial`
+    - Result: **Mesial surface** (correct - toward midline)
+  </Tab>
+  
+  <Tab title="Tooth 21 (Upper left)">
+    Clicking the **left** side of the canvas:
+    - Canvas position: `left`
+    - Quadrant 2 mapping: `left → distal`
+    - Result: **Distal surface** (correct - away from midline)
+  </Tab>
+</Tabs>
+
+Without FDI-aware mapping, both would incorrectly show the same surface name.
+
+## Clinical accuracy
+
+The FDI mapping system ensures:
+
+<CardGroup cols={2}>
+  <Card title="Anatomical correctness" icon="tooth">
+    Treatments are documented on the correct anatomical surface
+  </Card>
+  <Card title="Professional standards" icon="certificate">
+    Uses internationally-recognized FDI notation
+  </Card>
+  <Card title="Accurate records" icon="file-medical">
+    Export data matches clinical documentation standards
+  </Card>
+  <Card title="Clear communication" icon="comments">
+    Surface names are unambiguous for dental professionals
+  </Card>
+</CardGroup>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Geometry system" href="/api/geometry">
+    Technical details of position mapping
+  </Card>
+  <Card title="JSON export" href="/features/json-export">
+    How surface data appears in exports
+  </Card>
+</CardGroup>

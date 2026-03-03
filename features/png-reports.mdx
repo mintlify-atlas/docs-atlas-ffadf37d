@@ -1,0 +1,299 @@
+---
+title: PNG report generation
+description: Generate professional A4-sized clinical reports with odontogram and treatment details
+---
+
+The Dental Odontogram can generate professional A4-style PNG reports that include the odontogram visualization, treatment details, and clinical notes.
+
+## Report format
+
+Reports are generated as PNG images with:
+
+- **Dimensions**: 1600px × 2000px (A4 aspect ratio at ~190 DPI)
+- **Layout**: Professional clinical document format
+- **Sections**: Header, patient info, odontogram, treatment details, notes
+- **Font sizes**: 18px-28px for readability
+- **Two-column design**: Up to 4 teeth per column for treatment details
+
+## Generating reports
+
+Reports are generated using the `generateProfessionalPNG()` function from `dental-app.js`:
+
+```javascript
+async function generateProfessionalPNG() {
+  // Get current odontogram canvas
+  const $canvas = $('#odontogram')
+  const odontogram = $canvas.data('odontogram')
+  
+  if (!odontogram) {
+    alert('No se puede generar el reporte. Odontograma no inicializado.')
+    return
+  }
+
+  // Get geometry data
+  const geometry = odontogram.geometry || {}
+  
+  // Create A4-sized canvas
+  const reportCanvas = document.createElement('canvas')
+  reportCanvas.width = 1600
+  reportCanvas.height = 2000
+  const ctx = reportCanvas.getContext('2d')
+  
+  // White background
+  ctx.fillStyle = '#FFFFFF'
+  ctx.fillRect(0, 0, reportCanvas.width, reportCanvas.height)
+  
+  // ... rest of rendering logic
+}
+```
+
+## Report sections
+
+### 1. Header
+
+```javascript
+// Header with title
+ctx.fillStyle = '#0066CC'
+ctx.fillRect(0, 0, reportCanvas.width, 80)
+ctx.fillStyle = '#FFFFFF'
+ctx.font = 'bold 32px Arial'
+ctx.textAlign = 'center'
+ctx.fillText('ODONTOGRAMA DENTAL', reportCanvas.width / 2, 50)
+```
+
+### 2. Patient information
+
+```javascript
+// Patient info section
+const patientName = document.getElementById('patientName')?.textContent || 'Paciente'
+const currentDate = new Date().toLocaleDateString('es-AR')
+
+ctx.fillStyle = '#333333'
+ctx.font = 'bold 24px Arial'
+ctx.textAlign = 'left'
+ctx.fillText(`Paciente: ${patientName}`, 40, 120)
+ctx.fillText(`Fecha: ${currentDate}`, 40, 150)
+```
+
+### 3. Odontogram visualization
+
+```javascript
+// Draw the odontogram at scale
+const odontogramScale = 1.5
+const odontogramY = 180
+
+ctx.save()
+ctx.translate(100, odontogramY)
+ctx.scale(odontogramScale, odontogramScale)
+
+// Draw odontogram from original canvas
+const odontogramDataURL = odontogram.getDataURL()
+const odontogramImage = new Image()
+odontogramImage.onload = function () {
+  ctx.drawImage(odontogramImage, 0, 0)
+  ctx.restore()
+  
+  // Continue with treatment details...
+}
+odontogramImage.src = odontogramDataURL
+```
+
+### 4. Treatment details
+
+Treatment details are rendered in a two-column layout:
+
+```javascript
+const detailsY = odontogramY + 700 // Below odontogram
+const columnWidth = 700
+const leftColumnX = 50
+const rightColumnX = 850
+const lineHeight = 30
+
+let currentY = detailsY
+let currentColumn = 'left'
+let teethInColumn = 0
+const MAX_TEETH_PER_COLUMN = 4
+
+ctx.font = 'bold 22px Arial'
+ctx.fillStyle = '#0066CC'
+ctx.fillText('DETALLE DE TRATAMIENTOS', leftColumnX, currentY)
+currentY += 40
+
+// Iterate through teeth with treatments
+Object.keys(geometry).forEach((toothKey) => {
+  const toothNum = toothKey.split('-')[0]
+  const treatments = geometry[toothKey] || []
+  
+  if (treatments.length === 0) return
+  
+  // Switch columns if needed
+  if (teethInColumn >= MAX_TEETH_PER_COLUMN) {
+    currentColumn = 'right'
+    currentY = detailsY + 40 // Reset Y for right column
+    teethInColumn = 0
+  }
+  
+  const x = currentColumn === 'left' ? leftColumnX : rightColumnX
+  
+  // Tooth number
+  ctx.font = 'bold 24px Arial'
+  ctx.fillStyle = '#0066CC'
+  ctx.fillText(`Pieza ${toothNum}:`, x, currentY)
+  currentY += lineHeight
+  
+  // Treatment list
+  ctx.font = '18px Arial'
+  ctx.fillStyle = '#333333'
+  treatments.forEach((treatment) => {
+    const name = getTreatmentName(treatment.name)
+    const icon = getTreatmentIcon(treatment.name)
+    const layer = getLayerInfo(treatment.layer || 'pre')
+    
+    ctx.fillText(`  ${icon} ${name} [${layer.badge}]`, x, currentY)
+    currentY += lineHeight
+  })
+  
+  teethInColumn++
+  currentY += 10 // Space between teeth
+})
+```
+
+### 5. Notes section
+
+```javascript
+// Notes at bottom
+const notesY = 1800
+ctx.font = 'bold 22px Arial'
+ctx.fillStyle = '#0066CC'
+ctx.fillText('NOTAS CLÍNICAS', leftColumnX, notesY)
+
+let noteY = notesY + 35
+ctx.font = '18px Arial'
+ctx.fillStyle = '#333333'
+
+Object.keys(toothNotes).forEach((toothNum) => {
+  if (toothNotes[toothNum]) {
+    ctx.fillText(`Pieza ${toothNum}: ${toothNotes[toothNum]}`, leftColumnX, noteY)
+    noteY += 25
+  }
+})
+```
+
+## Configuration options
+
+You can customize the report by modifying constants in `generateProfessionalPNG()`:
+
+<ParamField path="reportCanvas.width" type="number" default={1600}>
+  Canvas width in pixels (A4 width at ~190 DPI)
+</ParamField>
+
+<ParamField path="reportCanvas.height" type="number" default={2000}>
+  Canvas height in pixels (A4 height at ~190 DPI)
+</ParamField>
+
+<ParamField path="odontogramScale" type="number" default={1.5}>
+  Scale factor for the odontogram visualization
+</ParamField>
+
+<ParamField path="MAX_TEETH_PER_COLUMN" type="number" default={4}>
+  Maximum number of teeth to show per column before switching to the second column
+</ParamField>
+
+<ParamField path="lineHeight" type="number" default={30}>
+  Vertical spacing between treatment lines in pixels
+</ParamField>
+
+## Font sizes
+
+The report uses different font sizes for hierarchy:
+
+- **32px**: Main title
+- **24-28px**: Section headers and patient info
+- **22px**: Tooth numbers and section titles
+- **18px**: Treatment details and notes
+
+## Downloading the report
+
+After generation, the report is automatically downloaded:
+
+```javascript
+// Convert canvas to blob and download
+reportCanvas.toBlob((blob) => {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  const patientName = document.getElementById('patientName')?.textContent || 'Paciente'
+  const dateStr = new Date().toISOString().split('T')[0]
+  
+  link.href = url
+  link.download = `Odontograma_${patientName}_${dateStr}.png`
+  link.click()
+  
+  URL.revokeObjectURL(url)
+}, 'image/png')
+```
+
+## Report usage workflow
+
+<Steps>
+  <Step title="Complete the odontogram">
+    Mark all treatments on both pre-existing and required layers.
+  </Step>
+  
+  <Step title="Add clinical notes">
+    Document any additional information in the notes section for relevant teeth.
+  </Step>
+  
+  <Step title="Generate report">
+    Click the **Descargar** button with the 💾 icon to generate the PNG report.
+  </Step>
+  
+  <Step title="Review the output">
+    The report will download automatically with filename `Odontograma_[Patient]_[Date].png`.
+  </Step>
+  
+  <Step title="Print or attach to records">
+    The A4-sized PNG can be printed directly or attached to electronic health records.
+  </Step>
+</Steps>
+
+## Report features
+
+<CardGroup cols={2}>
+  <Card title="Professional layout" icon="file-medical">
+    Clean, clinical document format suitable for patient records
+  </Card>
+  <Card title="Complete information" icon="clipboard-check">
+    Includes odontogram, treatments, layers, and notes
+  </Card>
+  <Card title="Layer identification" icon="layer-group">
+    Each treatment shows [PRE] or [REQ] badge for clarity
+  </Card>
+  <Card title="Printable format" icon="print">
+    A4 dimensions for direct printing without scaling
+  </Card>
+</CardGroup>
+
+## Best practices
+
+<Tip>
+  Generate reports after completing both annotation layers for a complete treatment plan overview.
+</Tip>
+
+<Note>
+  The report generation happens entirely in the browser - no data is sent to a server.
+</Note>
+
+<Warning>
+  If you have more than 8 teeth with treatments, some may be truncated. Consider using JSON export for complete data in those cases.
+</Warning>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="JSON export" href="/features/json-export">
+    Export complete data in JSON format
+  </Card>
+  <Card title="Upload endpoint" href="/api/upload-endpoint">
+    Send PNG reports to backend storage
+  </Card>
+</CardGroup>

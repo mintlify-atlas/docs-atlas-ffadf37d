@@ -1,0 +1,644 @@
+---
+title: 'Treatment Mode Constants'
+description: 'Complete list of ODONTOGRAM_MODE constants with values, meanings, and visual representations'
+---
+
+## Overview
+
+The jQuery Odontogram plugin uses numeric constants to represent different dental treatments and conditions. These constants are defined globally in `jquery.odontogram.js` (lines 1-35) and are used with the `setMode()` method.
+
+## Using Treatment Modes
+
+```javascript
+// Set the current treatment mode
+$('#odontogram').odontogram('setMode', ODONTOGRAM_MODE_AMF)
+
+// User clicks on tooth surface → AMF treatment applied
+```
+
+## Treatment Mode Constants
+
+### Control Modes
+
+<ParamField path="ODONTOGRAM_MODE_DEFAULT" type="number" default={0}>
+  **Default mode - No action**
+  
+  Value: `0`
+  
+  Description: Do nothing when clicking on teeth. Used to deselect active modes.
+  
+  ```javascript
+  var ODONTOGRAM_MODE_DEFAULT = 0
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_HAPUS" type="number" default={100}>
+  **Delete mode**
+  
+  Value: `100`
+  
+  Symbol: ❌ (Red X overlay)
+  
+  Description: Remove treatments from clicked surfaces or teeth.
+  
+  ```javascript
+  var ODONTOGRAM_MODE_HAPUS = 100
+  ```
+  
+  Visual: Red semi-transparent overlay with X mark
+</ParamField>
+
+---
+
+### Surface Treatments (Applied to Individual Surfaces)
+
+<ParamField path="ODONTOGRAM_MODE_AMF" type="number" default={1}>
+  **Amalgam Filling**
+  
+  Value: `1`
+  
+  Symbol: `/A`
+  
+  Description: Amalgam filling (tambalan amalgam). Displays `/A` symbol on surface.
+  
+  Color: Layer-based (Red for pre-existing, Blue for required)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_AMF = 1
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_COF" type="number" default={2}>
+  **Composite Filling / Obturación**
+  
+  Value: `2`
+  
+  Symbol: `/Ob`
+  
+  Description: Composite filling. Displays `/Ob` symbol on surface.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_COF = 2
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_FIS" type="number" default={3}>
+  **Pit and Fissure Sealant**
+  
+  Value: `3`
+  
+  Symbol: Purple fill
+  
+  Description: Pit and fissure sealant. Fills surface with purple color (#ed3bed).
+  
+  ```javascript
+  var ODONTOGRAM_MODE_FIS = 3
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_CARIES" type="number" default={10}>
+  **Treatable Caries**
+  
+  Value: `10`
+  
+  Symbol: Blue fill
+  
+  Description: Treatable caries. Fills surface with blue (#6896ecff).
+  
+  ```javascript
+  var ODONTOGRAM_MODE_CARIES = 10
+  ```
+  
+  Note: This is a pathology - does NOT use layer colors
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_CARIES_UNTREATABLE" type="number" default={27}>
+  **Untreatable Caries**
+  
+  Value: `27`
+  
+  Symbol: Yellow/amber fill
+  
+  Description: Untreatable caries (intratables). Fills surface with amber (#FFC107).
+  
+  ```javascript
+  var ODONTOGRAM_MODE_CARIES_UNTREATABLE = 27
+  ```
+  
+  Note: This is a pathology - does NOT use layer colors
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_SIL" type="number" default={28}>
+  **Sellante (Sealant)**
+  
+  Value: `28`
+  
+  Symbol: `/S`
+  
+  Description: Sealant. Displays `/S` symbol on surface.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_SIL = 28
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_INC" type="number" default={29}>
+  **Incrustación (Inlay)**
+  
+  Value: `29`
+  
+  Symbol: `I`
+  
+  Description: Inlay. Displays `I` symbol on surface.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_INC = 29
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_RES" type="number" default={31}>
+  **Restauración (Restoration)**
+  
+  Value: `31`
+  
+  Symbol: Red fill
+  
+  Description: Restoration. Fills surface with red (#dc3545).
+  
+  ```javascript
+  var ODONTOGRAM_MODE_RES = 31
+  ```
+  
+  Note: Always red in visual, regardless of layer
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_REF" type="number" default={32}>
+  **Restauración Filtrada (Filtered Restoration)**
+  
+  Value: `32`
+  
+  Symbol: `/Rf`
+  
+  Description: Filtered restoration. Displays `/Rf` symbol on surface.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_REF = 32
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_NVT" type="number" default={4}>
+  **Surco Profundo (Deep Groove)**
+  
+  Value: `4`
+  
+  Symbol: `/Sp`
+  
+  Description: Deep groove (surco profundo). Displays `/Sp` symbol on surface.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_NVT = 4
+  ```
+</ParamField>
+
+---
+
+### Whole Tooth Treatments
+
+<ParamField path="ODONTOGRAM_MODE_RCT" type="number" default={5}>
+  **Root Canal Treatment**
+  
+  Value: `5`
+  
+  Symbol: ▼ (filled triangle below tooth)
+  
+  Description: Root canal treatment (perawatan saluran akar). Displays filled triangle.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_RCT = 5
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_NON" type="number" default={6}>
+  **Tooth Absent (Unknown)**
+  
+  Value: `6`
+  
+  Symbol: `/S` in center
+  
+  Description: Tooth not present, unknown if it ever existed.
+  
+  ```javascript
+  var ODONTOGRAM_MODE_NON = 6
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_UNE" type="number" default={7}>
+  **Unerupted**
+  
+  Value: `7`
+  
+  Symbol: Blue X
+  
+  Description: Unerupted tooth. Displays X mark in blue (#0066FF).
+  
+  ```javascript
+  var ODONTOGRAM_MODE_UNE = 7
+  ```
+  
+  Note: Always blue in visual
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_PRE" type="number" default={8}>
+  **Periodontitis / Paradentosis**
+  
+  Value: `8`
+  
+  Symbol: `Pd`
+  
+  Description: Periodontitis. Displays `Pd` text.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_PRE = 8
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_ANO" type="number" default={9}>
+  **Anomaly**
+  
+  Value: `9`
+  
+  Symbol: `ANO` text
+  
+  Description: Tooth anomaly (peg-shaped, microdontia, fusion, etc.). Displays "ANO".
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ANO = 9
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_CFR" type="number" default={11}>
+  **Fracture / Extraction Indicated**
+  
+  Value: `11`
+  
+  Symbol: `=`
+  
+  Description: Fractured tooth or indicated for extraction. Displays `=` in center.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_CFR = 11
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_FMC" type="number" default={12}>
+  **Full Metal Crown / Removable Prosthesis**
+  
+  Value: `12`
+  
+  Symbol: □ (square border)
+  
+  Description: Full metal crown or removable prosthesis. Draws thick square border.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_FMC = 12
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_POC" type="number" default={13}>
+  **Porcelain Crown**
+  
+  Value: `13`
+  
+  Symbol: ○ (circle)
+  
+  Description: Porcelain crown. Draws circle in tooth center.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_POC = 13
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_RRX" type="number" default={14}>
+  **Root Remnant**
+  
+  Value: `14`
+  
+  Symbol: Angled lines
+  
+  Description: Root remnant (sisa akar). Draws angled lines.
+  
+  ```javascript
+  var ODONTOGRAM_MODE_RRX = 14
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_MIS" type="number" default={15}>
+  **Missing Tooth**
+  
+  Value: `15`
+  
+  Symbol: Red X
+  
+  Description: Missing tooth. Displays X mark in red (#FF0000).
+  
+  ```javascript
+  var ODONTOGRAM_MODE_MIS = 15
+  ```
+  
+  Note: Always red in visual
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_IPX" type="number" default={16}>
+  **Implant**
+  
+  Value: `16`
+  
+  Symbol: `IM`
+  
+  Description: Implant with porcelain crown. Displays "IM" text.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_IPX = 16
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_FRM_ACR" type="number" default={17}>
+  **Partial/Full Denture (Pivot)**
+  
+  Value: `17`
+  
+  Symbol: `P`
+  
+  Description: Partial or full denture. Displays "P" text.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_FRM_ACR = 17
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_BRIDGE" type="number" default={18}>
+  **Bridge**
+  
+  Value: `18`
+  
+  Symbol: Π (connected line between teeth)
+  
+  Description: Dental bridge connecting multiple teeth. Draws connecting lines.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_BRIDGE = 18
+  ```
+  
+  Usage: Click first tooth, then click second tooth to create bridge
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_ORT" type="number" default={30}>
+  **Orthodontics**
+  
+  Value: `30`
+  
+  Symbol: `~`
+  
+  Description: Orthodontic treatment. Displays `~` symbol on top/bottom surfaces.
+  
+  Color: Layer-based (Red/Blue)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ORT = 30
+  ```
+</ParamField>
+
+---
+
+### Arrow Indicators
+
+<ParamField path="ODONTOGRAM_MODE_ARROW_TOP_LEFT" type="number" default={19}>
+  **Top-Left Arrow**
+  
+  Value: `19`
+  
+  Symbol: ← (arrow pointing left above tooth)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ARROW_TOP_LEFT = 19
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_ARROW_TOP_RIGHT" type="number" default={20}>
+  **Top-Right Arrow**
+  
+  Value: `20`
+  
+  Symbol: → (arrow pointing right above tooth)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ARROW_TOP_RIGHT = 20
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_ARROW_TOP_TURN_LEFT" type="number" default={21}>
+  **Top-Turn-Left Arrow**
+  
+  Value: `21`
+  
+  Symbol: ↰ (curved arrow turning left above tooth)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ARROW_TOP_TURN_LEFT = 21
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_ARROW_TOP_TURN_RIGHT" type="number" default={22}>
+  **Top-Turn-Right Arrow**
+  
+  Value: `22`
+  
+  Symbol: ↱ (curved arrow turning right above tooth)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ARROW_TOP_TURN_RIGHT = 22
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_ARROW_BOTTOM_LEFT" type="number" default={23}>
+  **Bottom-Left Arrow**
+  
+  Value: `23`
+  
+  Symbol: ← (arrow pointing left below tooth)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ARROW_BOTTOM_LEFT = 23
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_ARROW_BOTTOM_RIGHT" type="number" default={24}>
+  **Bottom-Right Arrow**
+  
+  Value: `24`
+  
+  Symbol: → (arrow pointing right below tooth)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ARROW_BOTTOM_RIGHT = 24
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_ARROW_BOTTOM_TURN_LEFT" type="number" default={25}>
+  **Bottom-Turn-Left Arrow**
+  
+  Value: `25`
+  
+  Symbol: ↲ (curved arrow turning left below tooth)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ARROW_BOTTOM_TURN_LEFT = 25
+  ```
+</ParamField>
+
+<ParamField path="ODONTOGRAM_MODE_ARROW_BOTTOM_TURN_RIGHT" type="number" default={26}>
+  **Bottom-Turn-Right Arrow**
+  
+  Value: `26`
+  
+  Symbol: ↳ (curved arrow turning right below tooth)
+  
+  ```javascript
+  var ODONTOGRAM_MODE_ARROW_BOTTOM_TURN_RIGHT = 26
+  ```
+</ParamField>
+
+---
+
+## Layer Color System
+
+Most treatments support a dual-layer color system:
+
+```javascript
+var LAYER_COLORS = {
+  pre: '#FF0000',  // Red for pre-existing treatments
+  req: '#0066FF'   // Blue for required treatments
+}
+```
+
+### Treatments Using Layer Colors
+
+These treatments change color based on the current annotation layer:
+- AMF, COF, SIL, INC, REF, NVT
+- RCT, POC, FMC, IPX, FRM_ACR, CFR
+- BRIDGE, ORT, PRE
+
+### Treatments With Fixed Colors (Pathologies)
+
+These treatments maintain their original colors regardless of layer:
+- **CARIES**: Blue (#6896ecff)
+- **CARIES_UNTREATABLE**: Amber (#FFC107)
+- **RES**: Red (#dc3545)
+- **MIS**: Red (#FF0000)
+- **UNE**: Blue (#0066FF)
+- **FIS**: Purple (#ed3bed)
+
+## Usage Example
+
+From `index.html:32-114` and `dental-app.js:883-892`:
+
+```html
+<!-- HTML Buttons -->
+<button type="button" id="ODONTOGRAM_MODE_AMF">
+  <span class="symbol">/A</span>
+  <span class="name">Amalgam Filling</span>
+</button>
+
+<button type="button" id="ODONTOGRAM_MODE_CARIES">
+  <span class="symbol"></span>
+  <span class="name">Caries</span>
+</button>
+```
+
+```javascript
+// JavaScript Event Handlers
+$('#ODONTOGRAM_MODE_AMF').click(function() {
+  $('#odontogram').odontogram('setMode', ODONTOGRAM_MODE_AMF)
+  $(this).addClass('active')
+})
+
+$('#ODONTOGRAM_MODE_CARIES').click(function() {
+  $('#odontogram').odontogram('setMode', ODONTOGRAM_MODE_CARIES)
+  $(this).addClass('active')
+})
+
+// Generic handler for all mode buttons
+$('[id^="ODONTOGRAM_MODE_"]').click(function() {
+  var modeName = $(this).attr('id')
+  var modeValue = window[modeName]
+  
+  if (typeof modeValue !== 'undefined') {
+    $('#odontogram').odontogram('setMode', modeValue)
+  }
+})
+```
+
+## Quick Reference Table
+
+| Constant | Value | Symbol | Color | Category |
+|----------|-------|--------|-------|----------|
+| `ODONTOGRAM_MODE_DEFAULT` | 0 | - | - | Control |
+| `ODONTOGRAM_MODE_HAPUS` | 100 | ❌ | Red | Control |
+| `ODONTOGRAM_MODE_AMF` | 1 | /A | Layer | Surface |
+| `ODONTOGRAM_MODE_COF` | 2 | /Ob | Layer | Surface |
+| `ODONTOGRAM_MODE_FIS` | 3 | Fill | Purple | Surface |
+| `ODONTOGRAM_MODE_CARIES` | 10 | Fill | Blue | Surface |
+| `ODONTOGRAM_MODE_CARIES_UNTREATABLE` | 27 | Fill | Amber | Surface |
+| `ODONTOGRAM_MODE_SIL` | 28 | /S | Layer | Surface |
+| `ODONTOGRAM_MODE_INC` | 29 | I | Layer | Surface |
+| `ODONTOGRAM_MODE_RES` | 31 | Fill | Red | Surface |
+| `ODONTOGRAM_MODE_REF` | 32 | /Rf | Layer | Surface |
+| `ODONTOGRAM_MODE_NVT` | 4 | /Sp | Layer | Surface |
+| `ODONTOGRAM_MODE_RCT` | 5 | ▼ | Layer | Whole |
+| `ODONTOGRAM_MODE_UNE` | 7 | X | Blue | Whole |
+| `ODONTOGRAM_MODE_PRE` | 8 | Pd | Layer | Whole |
+| `ODONTOGRAM_MODE_CFR` | 11 | = | Layer | Whole |
+| `ODONTOGRAM_MODE_FMC` | 12 | □ | Layer | Whole |
+| `ODONTOGRAM_MODE_POC` | 13 | ○ | Layer | Whole |
+| `ODONTOGRAM_MODE_MIS` | 15 | X | Red | Whole |
+| `ODONTOGRAM_MODE_IPX` | 16 | IM | Layer | Whole |
+| `ODONTOGRAM_MODE_FRM_ACR` | 17 | P | Layer | Whole |
+| `ODONTOGRAM_MODE_BRIDGE` | 18 | Π | Layer | Whole |
+| `ODONTOGRAM_MODE_ORT` | 30 | ~ | Layer | Whole |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Plugin Overview" icon="book" href="/api/plugin-overview">
+    Learn about the plugin architecture
+  </Card>
+  <Card title="Methods" icon="code" href="/api/methods">
+    Explore available plugin methods
+  </Card>
+</CardGroup>

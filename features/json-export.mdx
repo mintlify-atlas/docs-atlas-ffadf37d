@@ -1,0 +1,389 @@
+---
+title: JSON data export
+description: Export complete odontogram data in structured JSON format
+---
+
+The Dental Odontogram can export all treatment and note data as structured JSON, suitable for integration with dental practice management systems, electronic health records, or data analysis.
+
+## Export format
+
+The JSON export includes:
+
+- **Patient information**: Name and date
+- **Tooth-level data**: Treatments categorized by type and layer
+- **Surface mapping**: Anatomical surface names for surface-specific treatments
+- **Clinical notes**: Per-tooth notes
+
+## JSON structure
+
+The exported data follows this structure:
+
+```json
+{
+  "fecha": "2024-03-15",
+  "nombre": "Juan Pérez",
+  "piezas": [
+    {
+      "pieza": 11,
+      "condiciones": ["Caries Incurable - Cara/s: vestibular"],
+      "prestacion_requerida": ["Corona"],
+      "prestacion_preexistente": ["Obturación - Cara/s: mesial, distal"],
+      "notas": "Paciente refiere sensibilidad al frío"
+    },
+    {
+      "pieza": 21,
+      "condiciones": [],
+      "prestacion_requerida": [],
+      "prestacion_preexistente": ["Tratamiento de Conducto"],
+      "notas": ""
+    }
+  ]
+}
+```
+
+## Field descriptions
+
+<ParamField path="fecha" type="string" required>
+  Export date in `YYYY-MM-DD` format (Argentina timezone)
+</ParamField>
+
+<ParamField path="nombre" type="string" required>
+  Patient name from DOM or URL parameter
+</ParamField>
+
+<ParamField path="piezas" type="array" required>
+  Array of tooth objects with treatment data
+</ParamField>
+
+### Tooth object fields
+
+<ParamField path="piezas[].pieza" type="number" required>
+  FDI tooth number (11-48 for permanent, 51-85 for deciduous)
+</ParamField>
+
+<ParamField path="piezas[].condiciones" type="array<string>" required>
+  Pathological conditions (caries, paradentosis)
+</ParamField>
+
+<ParamField path="piezas[].prestacion_requerida" type="array<string>" required>
+  Required treatments (blue layer)
+</ParamField>
+
+<ParamField path="piezas[].prestacion_preexistente" type="array<string>" required>
+  Pre-existing treatments (red layer)
+</ParamField>
+
+<ParamField path="piezas[].notas" type="string" required>
+  Clinical notes for this tooth (empty string if none)
+</ParamField>
+
+## Export implementation
+
+The export is handled by the `exportOdontogramData()` function in `dental-app.js`:
+
+```javascript
+function exportOdontogramData() {
+  const $canvas = $('#odontogram')
+  const odontogram = $canvas.data('odontogram')
+  
+  if (!odontogram) {
+    alert('No hay datos para exportar')
+    return
+  }
+
+  const geometry = odontogram.geometry || {}
+  const piezas = []
+  
+  // Get patient name and date
+  const patientName = getPatientNameFromDOM() || 'Paciente sin nombre'
+  const exportDate = new Date().toLocaleDateString('es-AR')
+  
+  // Process each tooth
+  Object.keys(geometry).forEach((toothKey) => {
+    const toothNum = parseInt(toothKey.split('-')[0])
+    const treatments = geometry[toothKey] || []
+    
+    if (treatments.length === 0 && !toothNotes[toothNum]) return
+    
+    const toothInfo = getToothInfo(toothNum)
+    
+    // Initialize tooth data structure
+    const toothData = {
+      pieza: toothNum,
+      condiciones: [],
+      prestacion_requerida: [],
+      prestacion_preexistente: [],
+      notas: toothNotes[toothNum] || ''
+    }
+    
+    // ... categorization logic ...
+    
+    piezas.push(toothData)
+  })
+  
+  // Create export object
+  const exportData = {
+    fecha: exportDate,
+    nombre: patientName,
+    piezas: piezas
+  }
+  
+  // Download as JSON file
+  const dataStr = JSON.stringify(exportData, null, 2)
+  const blob = new Blob([dataStr], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `odontograma_${patientName}_${new Date().toISOString().split('T')[0]}.json`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+```
+
+## Treatment categorization
+
+Treatments are categorized into three groups:
+
+### 1. Conditions (pathologies)
+
+```javascript
+const condicionTreatments = treatments.filter((treatment) => {
+  const treatmentCode = treatment.name
+  const wholeTooth = ['PRE'] // Paradentosis
+  const withSides = ['CARIES_UNTREATABLE']
+  return wholeTooth.includes(treatmentCode) || withSides.includes(treatmentCode)
+})
+```
+
+Conditions include:
+- Paradentosis (PRE)
+- Caries Incurable (CARIES_UNTREATABLE)
+
+### 2. Required treatments (blue layer)
+
+```javascript
+const requeridas = prestacionTreatments.filter(
+  (t) => t.layer === 'req' || !t.layer
+)
+```
+
+### 3. Pre-existing treatments (red layer)
+
+```javascript
+const preExistentes = prestacionTreatments.filter(
+  (t) => t.layer === 'pre'
+)
+```
+
+## Surface grouping
+
+Surface-specific treatments are grouped and formatted with anatomical surface names:
+
+```javascript
+function groupTreatmentsBySurface(treatmentList) {
+  const grouped = {}
+  
+  treatmentList.forEach((treatment) => {
+    const treatmentName = getTreatmentName(treatment.name)
+    const withSides = [
+      'CARIES', 'CARIES_UNTREATABLE', 'REF', 'NVT', 
+      'SIL', 'RES', 'AMF', 'COF', 'INC'
+    ]
+    
+    if (!grouped[treatment.name]) {
+      grouped[treatment.name] = {
+        nombre: treatmentName,
+        superficies: [],
+        usa_superficies: withSides.includes(treatment.name)
+      }
+    }
+    
+    // Map canvas position to anatomical surface
+    if (withSides.includes(treatment.name) && treatment.pos && toothInfo) {
+      const canvasPositionMap = {
+        'T': 'top', 'B': 'bottom', 'L': 'left', 
+        'R': 'right', 'M': 'middle'
+      }
+      
+      const fullCanvasPosition = canvasPositionMap[surfaceCode]
+      const correctMapping = getCorrectSurfaceMapping(toothNum)
+      const anatomical = correctMapping[fullCanvasPosition]
+      
+      if (anatomical && !grouped[treatment.name].superficies.includes(anatomical)) {
+        grouped[treatment.name].superficies.push(anatomical)
+      }
+    }
+  })
+  
+  return grouped
+}
+```
+
+### Output formatting
+
+```javascript
+Object.values(groupedConditions).forEach((condition) => {
+  let conditionText = condition.nombre
+  if (condition.usa_superficies && condition.superficies.length > 0) {
+    conditionText += ` - Cara/s: ${condition.superficies.join(', ')}`
+  }
+  toothData.condiciones.push(conditionText)
+})
+```
+
+Produces strings like:
+- `"Caries"` (whole tooth)
+- `"Obturación - Cara/s: vestibular, mesial"` (specific surfaces)
+
+## Export examples
+
+### Example 1: Simple case
+
+**Odontogram state:**
+- Tooth 11: Pre-existing filling (red layer)
+- Tooth 21: Required crown (blue layer)
+
+**JSON output:**
+```json
+{
+  "fecha": "15/03/2024",
+  "nombre": "María González",
+  "piezas": [
+    {
+      "pieza": 11,
+      "condiciones": [],
+      "prestacion_requerida": [],
+      "prestacion_preexistente": ["Obturación"],
+      "notas": ""
+    },
+    {
+      "pieza": 21,
+      "condiciones": [],
+      "prestacion_requerida": ["Corona"],
+      "prestacion_preexistente": [],
+      "notas": ""
+    }
+  ]
+}
+```
+
+### Example 2: Complex case with surfaces and notes
+
+**Odontogram state:**
+- Tooth 16: Caries on mesial and oclusal, required filling, with note
+- Tooth 26: Pre-existing root canal, required crown
+
+**JSON output:**
+```json
+{
+  "fecha": "15/03/2024",
+  "nombre": "Carlos Rodríguez",
+  "piezas": [
+    {
+      "pieza": 16,
+      "condiciones": ["Caries - Cara/s: mesial, oclusal"],
+      "prestacion_requerida": ["Obturación - Cara/s: mesial, oclusal"],
+      "prestacion_preexistente": [],
+      "notas": "Lesión profunda, evaluar RCT si hay dolor"
+    },
+    {
+      "pieza": 26,
+      "condiciones": [],
+      "prestacion_requerida": ["Corona"],
+      "prestacion_preexistente": ["Tratamiento de Conducto"],
+      "notas": ""
+    }
+  ]
+}
+```
+
+## Validation
+
+Before export, the system checks for data:
+
+```javascript
+let totalTreatments = 0
+let totalNotes = 0
+
+Object.keys(geometry).forEach((key) => {
+  totalTreatments += geometry[key].length
+})
+
+Object.keys(toothNotes).forEach((key) => {
+  if (toothNotes[key]) totalNotes++
+})
+
+if (totalTreatments === 0 && totalNotes === 0) {
+  alert('No hay tratamientos ni notas para exportar')
+  return
+}
+```
+
+## Integration with backend
+
+The JSON export can be sent to the backend upload endpoint:
+
+```javascript
+// From dental-app.js uploadOdontogram function
+const formData = new FormData()
+formData.append('file', pngBlob, filename)
+formData.append('recordId', recordId)
+formData.append('fieldName', 'odontograma')
+formData.append('jsonData', JSON.stringify(exportData))
+formData.append('jsonFieldName', 'odontograma_json')
+
+const response = await fetch('/api/upload-odontogram', {
+  method: 'POST',
+  body: formData
+})
+```
+
+See [Upload endpoint](/api/upload-endpoint) for backend integration details.
+
+## Use cases
+
+<CardGroup cols={2}>
+  <Card title="Treatment planning" icon="clipboard-list">
+    Export planned treatments for review or approval
+  </Card>
+  <Card title="Electronic health records" icon="database">
+    Import dental data into practice management systems
+  </Card>
+  <Card title="Data backup" icon="cloud-arrow-up">
+    Store patient odontogram data for archival
+  </Card>
+  <Card title="Reporting and analytics" icon="chart-line">
+    Analyze treatment patterns across patient populations
+  </Card>
+</CardGroup>
+
+## Best practices
+
+<Tip>
+  Export JSON data before generating PNG reports. The JSON contains complete surface-level detail that may be truncated in the PNG.
+</Tip>
+
+<Note>
+  The export only includes teeth that have treatments or notes. Empty teeth are omitted from the `piezas` array.
+</Note>
+
+<Warning>
+  Ensure patient information is accurate before exporting. The patient name is read from the DOM and cannot be changed in the export.
+</Warning>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="PNG reports" href="/features/png-reports">
+    Generate visual reports
+  </Card>
+  <Card title="Upload endpoint" href="/api/upload-endpoint">
+    Send data to backend
+  </Card>
+  <Card title="FDI mapping" href="/features/fdi-mapping">
+    Understanding surface mapping
+  </Card>
+  <Card title="Dual layers" href="/features/dual-layers">
+    Pre-existing vs required layer system
+  </Card>
+</CardGroup>

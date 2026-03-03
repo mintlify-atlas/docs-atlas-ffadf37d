@@ -1,0 +1,436 @@
+---
+title: 'Main Application Functions'
+description: 'Core functions for the Dental Odontogram application'
+---
+
+## Overview
+
+The main application functions handle data loading, tooth information retrieval, treatment management, and export functionality for the dental charting system.
+
+---
+
+## loadDentalData()
+
+Asynchronously loads FDI tooth data from the JSON database file.
+
+### Signature
+
+```javascript
+async function loadDentalData()
+```
+
+### Description
+
+Fetches tooth information from `dientes_fdi_completo.json` and stores it in the global `dentalData` variable. This data includes tooth types, names, surfaces, and anatomical information for all FDI tooth numbers.
+
+### Returns
+
+<ResponseField name="void" type="Promise<void>">
+  Returns a promise that resolves when data is loaded successfully
+</ResponseField>
+
+### Example
+
+```javascript
+// Load dental data on app initialization
+await loadDentalData()
+console.log('Dental data loaded successfully')
+```
+
+### Error Handling
+
+```javascript
+try {
+  const response = await fetch('./dientes_fdi_completo.json')
+  dentalData = await response.json()
+  console.log('Dental data loaded successfully')
+} catch (error) {
+  console.error('Error loading dental data:', error)
+}
+```
+
+---
+
+## getToothInfo(fdi)
+
+Retrieves detailed information for a specific tooth by its FDI number.
+
+### Signature
+
+```javascript
+function getToothInfo(fdi)
+```
+
+### Parameters
+
+<ParamField path="fdi" type="number | string" required>
+  The FDI tooth number (e.g., 11, 21, 36). Can be provided as string or number.
+</ParamField>
+
+### Returns
+
+<ResponseField name="toothInfo" type="object | null">
+  Returns tooth information object or null if not found
+  
+  **Properties:**
+  - `fdi` (number): FDI tooth number
+  - `tipo` (string): Tooth type (e.g., "incisivo", "molar")
+  - `nombre` (string): Tooth name/location
+  - `arco` (string): Jaw arch (superior/inferior)
+  - `lado` (string): Side (derecha/izquierda)
+  - `caras` (array): Available tooth surfaces
+</ResponseField>
+
+### Example
+
+```javascript
+const toothInfo = getToothInfo(21)
+if (toothInfo) {
+  console.log(`Tooth ${toothInfo.fdi}: ${toothInfo.nombre}`)
+  console.log(`Type: ${toothInfo.tipo}`)
+  console.log(`Surfaces: ${toothInfo.caras.join(', ')}`)
+}
+// Output:
+// Tooth 21: Incisivo Central Superior Izquierdo
+// Type: incisivo
+// Surfaces: vestibular, palatina, mesial, distal, incisal
+```
+
+### Implementation
+
+```javascript
+function getToothInfo(fdi) {
+  if (!dentalData || !dentalData.dientes) return null
+  
+  // Ensure FDI is treated as number for proper matching
+  const fdiNumber = parseInt(fdi)
+  return dentalData.dientes.find((tooth) => tooth.fdi === fdiNumber)
+}
+```
+
+---
+
+## displayToothInfo(fdi)
+
+Displays detailed tooth information in the UI info panel.
+
+### Signature
+
+```javascript
+function displayToothInfo(fdi)
+```
+
+### Parameters
+
+<ParamField path="fdi" type="number | string" required>
+  The FDI tooth number to display information for
+</ParamField>
+
+### Returns
+
+<ResponseField name="void" type="void">
+  Updates the DOM element with id 'toothInfo'
+</ResponseField>
+
+### Description
+
+Generates and displays a formatted card showing tooth details including type, location, arch/side, and available surfaces. If tooth information is not available, displays a "not available" message.
+
+### Example
+
+```javascript
+// Display info for tooth 16
+displayToothInfo(16)
+
+// Renders HTML:
+// <div class="tooth-details-card">
+//   <h4>Diente 16</h4>
+//   <div class="tooth-detail-row">
+//     <span class="label">Tipo:</span>
+//     <span class="value">molar</span>
+//   </div>
+//   ...
+// </div>
+```
+
+### Surface Name Mapping
+
+```javascript
+const surfaceNames = {
+  vestibular: 'Vestibular',
+  palatina: 'Palatina',
+  lingual: 'Lingual',
+  mesial: 'Mesial',
+  distal: 'Distal',
+  incisal: 'Incisal',
+  oclusal: 'Oclusal'
+}
+```
+
+---
+
+## getTreatmentName(code)
+
+Converts a treatment code to its human-readable Spanish name.
+
+### Signature
+
+```javascript
+function getTreatmentName(code)
+```
+
+### Parameters
+
+<ParamField path="code" type="string" required>
+  Treatment code (e.g., "CARIES", "AMF", "RCT")
+</ParamField>
+
+### Returns
+
+<ResponseField name="name" type="string">
+  Spanish treatment name, or the original code if not found
+</ResponseField>
+
+### Treatment Codes
+
+| Code | Spanish Name | English Description |
+|------|-------------|--------------------|
+| `CARIES` | Caries | Caries |
+| `CFR` | Extracción | Extraction |
+| `AMF` | Obturación Amalgama | Amalgam Filling |
+| `COF` | Obturación | Composite Filling |
+| `POC` | Corona | Crown |
+| `INC` | Incrustación | Inlay |
+| `FMC` | Prótesis Removible | Removable Prosthesis |
+| `IPX` | Implante | Implant |
+| `NVT` | Surco Profundo | Deep Groove |
+| `UNE` | Pieza No Erupcionada | Unerupted Tooth |
+| `RCT` | Tratamiento de Conducto | Root Canal Treatment |
+| `CARIES_UNTREATABLE` | Caries Incurable | Untreatable Caries |
+| `MIS` | Diente Ausente | Missing Tooth |
+| `SIL` | Obturación Silicato | Silicate Filling |
+| `PRE` | Paradentosis | Periodontitis |
+| `FRM_ACR` | Pivot | Pivot |
+| `BRIDGE` | Puente | Bridge |
+| `ORT` | Ortodoncia | Orthodontics |
+| `RES` | Restauración | Restoration |
+| `REF` | Restauración Filtrada | Leaked Restoration |
+
+### Example
+
+```javascript
+const name = getTreatmentName('AMF')
+console.log(name) // "Obturación Amalgama"
+
+const unknown = getTreatmentName('UNKNOWN')
+console.log(unknown) // "UNKNOWN" (returns code if not found)
+```
+
+---
+
+## generateProfessionalPNG()
+
+Generates a professional clinical PNG report and uploads it to the backend.
+
+### Signature
+
+```javascript
+async function generateProfessionalPNG()
+```
+
+### Description
+
+Creates an A4-sized (1600x2000px) professional dental report with:
+- Patient name and timestamp header
+- Odontogram diagram
+- Treatment details (up to 8 teeth in 2-column layout)
+- Notes for each tooth
+- Professional footer
+
+The generated image is uploaded to the backend along with JSON data.
+
+### Returns
+
+<ResponseField name="void" type="Promise<void>">
+  Uploads PNG and JSON to backend via API
+</ResponseField>
+
+### Canvas Specifications
+
+```javascript
+// A4 proportions at high resolution
+canvas.width = 1600
+canvas.height = 2000
+
+// Clinical white background
+ctx.fillStyle = '#FFFFFF'
+ctx.fillRect(0, 0, canvas.width, canvas.height)
+```
+
+### Report Sections
+
+1. **Header**
+   - Title: "ODONTOGRAMA"
+   - Patient name (truncated if too long)
+   - Date and time
+
+2. **Odontogram Diagram**
+   - Scaled to fit 700px height max
+   - Centered horizontally
+
+3. **Treatments (2-column layout)**
+   - Left column: Teeth 1-4
+   - Right column: Teeth 5-8
+   - Conditions, pre-existing treatments, required treatments
+   - Clinical notes
+
+4. **Footer**
+   - System attribution
+   - Generation timestamp
+
+### Example
+
+```javascript
+// Generate and upload report
+$('#download').click(function () {
+  generateProfessionalPNG()
+})
+
+// Inside function:
+const filename = `Odontograma_${sanitizedName}_${timestamp}.png`
+// Uploads to backend with patient record ID
+```
+
+### Font Sizes
+
+```javascript
+// Bigger fonts for readability
+ctx.font = 'bold 48px Arial' // Title
+ctx.font = '28px Arial'      // Patient info
+ctx.font = 'bold 24px Arial' // Tooth headers
+ctx.font = 'bold 28px Arial' // Notes label
+ctx.font = '24px Arial'      // Notes text
+```
+
+---
+
+## exportOdontogramData()
+
+Exports complete odontogram data as a JSON file download.
+
+### Signature
+
+```javascript
+function exportOdontogramData()
+```
+
+### Description
+
+Generates a structured JSON export containing all tooth treatments, conditions, and notes. Automatically downloads as a file named `odontograma_YYYY-MM-DD.json`.
+
+### Returns
+
+<ResponseField name="exportData" type="object">
+  The exported data object before download
+  
+  **Structure:**
+  - `fecha` (string): Export date in ISO format
+  - `nombre` (string): Patient name
+  - `piezas` (array): Array of tooth data objects
+</ResponseField>
+
+### Tooth Data Structure
+
+```javascript
+{
+  "pieza": 21,
+  "condiciones": [
+    "Caries Incurable - Cara/s: Vestibular, Mesial"
+  ],
+  "prestacion_requerida": [
+    "Obturación - Cara/s: Distal"
+  ],
+  "prestacion_preexistente": [
+    "Obturación Amalgama - Cara/s: Oclusal"
+  ],
+  "notas": "Patient reports sensitivity to cold"
+}
+```
+
+### Surface Mapping
+
+The export uses anatomically correct surface names based on FDI tooth position:
+
+```javascript
+const canvasPositionMap = {
+  T: 'top',
+  B: 'bottom',
+  L: 'left',
+  R: 'right',
+  M: 'middle'
+}
+
+// Then mapped to anatomical names:
+const correctMapping = getCorrectSurfaceMapping(toothNum)
+const anatomical = correctMapping[fullCanvasPosition]
+// e.g., "top" → "vestibular" (upper tooth) or "lingual" (lower tooth)
+```
+
+### Example Export
+
+```javascript
+const data = exportOdontogramData()
+
+// Returns and downloads:
+{
+  "fecha": "2024-03-15",
+  "nombre": "PACIENTE - [A obtener de Airtable]",
+  "piezas": [
+    {
+      "pieza": 16,
+      "condiciones": [],
+      "prestacion_requerida": ["Corona"],
+      "prestacion_preexistente": ["Tratamiento de Conducto"],
+      "notas": ""
+    },
+    {
+      "pieza": 21,
+      "condiciones": ["Caries Incurable - Cara/s: Vestibular"],
+      "prestacion_requerida": ["Extracción"],
+      "prestacion_preexistente": [],
+      "notas": "Urgente: dolor agudo"
+    }
+  ]
+}
+```
+
+### Validation
+
+```javascript
+// Only exports teeth with data
+if (
+  toothData.condiciones.length > 0 ||
+  toothData.prestacion_requerida.length > 0 ||
+  toothData.prestacion_preexistente.length > 0 ||
+  toothData.notas.trim() !== ''
+) {
+  exportData.piezas.push(toothData)
+}
+
+// Sorts teeth by FDI number
+exportData.piezas.sort((a, b) => parseInt(a.pieza) - parseInt(b.pieza))
+```
+
+### Download Trigger
+
+```javascript
+const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+  type: 'application/json'
+})
+const url = URL.createObjectURL(blob)
+const a = document.createElement('a')
+a.href = url
+a.download = `odontograma_${exportData.fecha}.json`
+a.click()
+URL.revokeObjectURL(url)
+```

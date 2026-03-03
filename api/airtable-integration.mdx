@@ -1,0 +1,355 @@
+---
+title: 'Airtable Integration'
+description: 'Store and manage odontogram data in Airtable'
+---
+
+## Overview
+
+The Dental Odontogram application uses Airtable as the database to store patient records, odontogram images, and formatted dental notes. Airtable provides a flexible, spreadsheet-like interface with powerful API capabilities.
+
+## Environment Variables
+
+To integrate with Airtable, configure the following environment variables:
+
+<ParamField path="AIRTABLE_API_KEY" type="string" required>
+  Your Airtable personal access token or API key for authentication
+</ParamField>
+
+<ParamField path="AIRTABLE_BASE_ID" type="string" required>
+  The ID of your Airtable base (starts with "app")
+</ParamField>
+
+### Setting Up Environment Variables
+
+Add these to your `.env.local` file:
+
+```bash
+AIRTABLE_API_KEY=patAbCdEfGhIjKlMnOp.1234567890abcdef
+AIRTABLE_BASE_ID=appXYZ123456789
+```
+
+<Warning>
+  Keep your Airtable API key secure. Never commit it to version control or expose it in client-side code.
+</Warning>
+
+## Base Structure
+
+The application expects an Airtable base with a table named **"Pacientes"** (Patients).
+
+### Required Table
+
+**Table Name:** `Pacientes`
+
+This table stores all patient information and odontogram data.
+
+## Record Structure and Fields
+
+Each patient record in Airtable contains the following fields:
+
+### Image Attachment Field
+
+<ParamField path="odontograma-imagenes" type="attachment[]">
+  Array of image attachments containing odontogram PNG files from Cloudinary
+</ParamField>
+
+The field name is configurable via the `fieldName` parameter in the upload request.
+
+**Structure:**
+```json
+[
+  {
+    "url": "https://res.cloudinary.com/...",
+    "filename": "odontogram.png"
+  }
+]
+```
+
+### Notes Fields
+
+<ParamField path="notas-odontograma-paciente" type="long text">
+  Cumulative history of all odontogram notes with timestamps (appended with each upload)
+</ParamField>
+
+<ParamField path="ultima-nota-odontograma-paciente" type="long text">
+  Most recent odontogram note (replaced with each upload)
+</ParamField>
+
+### Formatted Notes Example
+
+```text
+=============================
+PACIENTE: Juan Pérez
+ODONTOGRAMA GENERADO: 03/03/2026, 14:30:45
+=============================
+
+TRATAMIENTOS Y OBSERVACIONES:
+
+PIEZA 11:
+  • Condiciones:
+    - Caries
+  • Prestaciones Requeridas:
+    - Endodoncia
+  • Notas: Requiere atención urgente
+
+PIEZA 21:
+  • Prestaciones Preexistentes:
+    - Corona
+  • Condiciones:
+    - Desgaste
+```
+
+## How Data Is Stored
+
+### 1. Fetch Existing Data
+
+Before updating, the endpoint retrieves current data:
+
+```javascript
+const getRecordUrl = `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Pacientes/${recordId}`
+
+const getResponse = await fetch(getRecordUrl, {
+  method: 'GET',
+  headers: {
+    Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
+  },
+})
+
+let existingAttachments = []
+let existingNotes = ''
+
+if (getResponse.ok) {
+  const currentRecord = await getResponse.json()
+  existingAttachments = currentRecord.fields[fieldName] || []
+  existingNotes = currentRecord.fields[jsonFieldName] || ''
+}
+```
+
+### 2. Append New Attachment
+
+The new Cloudinary URL is added to existing attachments:
+
+```javascript
+const newAttachment = {
+  url: uploadResult.secure_url,
+  filename: file.originalFilename || 'odontogram.png',
+}
+
+const allAttachments = [...existingAttachments, newAttachment]
+```
+
+### 3. Format and Append Notes
+
+JSON data is formatted into readable text:
+
+```javascript
+const parsedData = JSON.parse(jsonData)
+
+const timestamp = now.toLocaleString('es-AR', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+})
+
+let formattedText = `\n\n=============================\nPACIENTE: ${parsedData.nombre}\nODONTOGRAMA GENERADO: ${timestamp}\n=============================\n\n`
+
+if (parsedData.piezas && parsedData.piezas.length > 0) {
+  formattedText += `TRATAMIENTOS Y OBSERVACIONES:\n\n`
+  
+  parsedData.piezas.forEach((pieza) => {
+    formattedText += `PIEZA ${pieza.pieza}:\n`
+    
+    if (pieza.condiciones && pieza.condiciones.length > 0) {
+      formattedText += `  • Condiciones:\n`
+      pieza.condiciones.forEach((condicion) => {
+        formattedText += `    - ${condicion}\n`
+      })
+    }
+    // ... more formatting
+  })
+}
+
+finalNotesText = existingNotes + formattedText
+```
+
+### 4. Update Record
+
+All data is updated in a single PATCH request:
+
+```javascript
+const airtableUrl = `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Pacientes/${recordId}`
+
+const updateFields = {
+  [fieldName]: allAttachments, // Image attachments
+  [jsonFieldName]: finalNotesText, // Cumulative notes
+  'ultima-nota-odontograma-paciente': latestNoteText // Latest note only
+}
+
+const attachmentData = {
+  fields: updateFields,
+}
+
+const airtableResponse = await fetch(airtableUrl, {
+  method: 'PATCH',
+  headers: {
+    Authorization: `Bearer ${process.env.AIRTABLE_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(attachmentData),
+})
+```
+
+## Data Fields Breakdown
+
+### JSON Input Structure
+
+```json
+{
+  "nombre": "Patient Name",
+  "piezas": [
+    {
+      "pieza": "11",
+      "condiciones": ["Caries", "Fractura"],
+      "prestacion_preexistente": ["Corona", "Amalgama"],
+      "prestacion_requerida": ["Endodoncia", "Corona"],
+      "notas": "Additional notes about this tooth"
+    }
+  ]
+}
+```
+
+### Field Descriptions
+
+<ParamField path="nombre" type="string">
+  Patient name (displayed in formatted notes)
+</ParamField>
+
+<ParamField path="piezas" type="array">
+  Array of dental pieces (teeth) with findings
+</ParamField>
+
+<ParamField path="piezas[].pieza" type="string">
+  Tooth number (e.g., "11", "21", "36")
+</ParamField>
+
+<ParamField path="piezas[].condiciones" type="string[]">
+  Existing conditions (e.g., "Caries", "Fractura")
+</ParamField>
+
+<ParamField path="piezas[].prestacion_preexistente" type="string[]">
+  Pre-existing treatments (e.g., "Corona", "Amalgama")
+</ParamField>
+
+<ParamField path="piezas[].prestacion_requerida" type="string[]">
+  Required treatments (e.g., "Endodoncia", "Extracción")
+</ParamField>
+
+<ParamField path="piezas[].notas" type="string">
+  Additional notes specific to this tooth
+</ParamField>
+
+## Setup Instructions
+
+### 1. Create an Airtable Account
+
+Sign up at [airtable.com](https://airtable.com) (free tier available).
+
+### 2. Create a Base
+
+1. Click "Add a base" → "Start from scratch"
+2. Name your base (e.g., "Dental Patients")
+3. Note your base ID from the URL: `https://airtable.com/appXYZ123456789/...`
+
+### 3. Create the Pacientes Table
+
+1. Rename the default table to "Pacientes"
+2. Add the following fields:
+   - **Name** (Single line text) - Auto-created
+   - **odontograma-imagenes** (Attachment)
+   - **notas-odontograma-paciente** (Long text)
+   - **ultima-nota-odontograma-paciente** (Long text)
+
+### 4. Get Your API Key
+
+1. Go to [airtable.com/create/tokens](https://airtable.com/create/tokens)
+2. Click "Create token"
+3. Give it a name (e.g., "Dental Odontogram API")
+4. Add scopes:
+   - `data.records:read`
+   - `data.records:write`
+5. Add access to your base
+6. Create token and copy it
+
+### 5. Configure Environment Variables
+
+Add to `.env.local`:
+
+```bash
+AIRTABLE_API_KEY=your-token-here
+AIRTABLE_BASE_ID=appXYZ123456789
+```
+
+## Error Handling
+
+### Credential Validation
+
+```javascript
+if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+  return res
+    .status(500)
+    .json({ error: 'Airtable credentials not configured' })
+}
+```
+
+### Update Errors
+
+```javascript
+if (!airtableResponse.ok) {
+  const errorText = await airtableResponse.text()
+  throw new Error(
+    `Airtable error: ${airtableResponse.status} - ${errorText}`
+  )
+}
+```
+
+Common errors:
+- **401 Unauthorized** - Invalid API key
+- **404 Not Found** - Base ID or record ID not found
+- **422 Unprocessable Entity** - Invalid field names or data format
+
+## Timestamp Format
+
+All timestamps use Argentina timezone (America/Argentina/Buenos_Aires):
+
+```javascript
+const timestamp = now.toLocaleString('es-AR', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+})
+// Output: 03/03/2026, 14:30:45
+```
+
+## Data Retention
+
+The application appends data rather than replacing it:
+
+- **Image attachments** - All historical images are preserved
+- **Cumulative notes** - All previous notes remain with new notes appended
+- **Latest note** - Only the most recent entry (replaced with each upload)
+
+This provides a complete audit trail of all odontogram changes over time.
+
+## Next Steps
+
+- Learn about [Cloudinary Integration](/api/cloudinary-setup) for image storage
+- Explore the [Upload API Endpoint](/api/upload-endpoint) documentation
