@@ -1,0 +1,296 @@
+---
+title: Patient API endpoint
+description: Fetch patient information from Airtable for display in the odontogram
+---
+
+The patient endpoint retrieves patient information from Airtable based on a record ID, used to display the patient's name in the application header.
+
+## Endpoint
+
+```
+GET /api/patient
+```
+
+## Request parameters
+
+<ParamField query="recordId" type="string" required>
+  The Airtable record ID of the patient to fetch
+</ParamField>
+
+## Response format
+
+### Success response (200 OK)
+
+<ResponseField name="success" type="boolean">
+  Always `true` for successful responses
+</ResponseField>
+
+<ResponseField name="patient" type="object">
+  Patient information object
+  
+  <Expandable title="properties">
+    <ResponseField name="name" type="string">
+      The patient's full name from the "Nombre Completo" field in Airtable
+    </ResponseField>
+    
+    <ResponseField name="recordId" type="string">
+      The Airtable record ID (echoed from request)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example success response
+
+```json
+{
+  "success": true,
+  "patient": {
+    "name": "Juan Pérez",
+    "recordId": "rec123abc456"
+  }
+}
+```
+
+## Error responses
+
+### 400 Bad Request
+
+Returned when the `recordId` parameter is missing.
+
+```json
+{
+  "error": "recordId is required"
+}
+```
+
+### 404 Not Found
+
+Returned when the patient record exists but doesn't have a name field.
+
+```json
+{
+  "error": "Patient name not found in record"
+}
+```
+
+### 405 Method Not Allowed
+
+Returned when using a method other than GET.
+
+```json
+{
+  "error": "Method not allowed"
+}
+```
+
+### 500 Internal Server Error
+
+Returned for server configuration issues or Airtable API errors.
+
+```json
+{
+  "error": "Server configuration error"
+}
+```
+
+or
+
+```json
+{
+  "error": "Internal server error",
+  "details": "Error message"
+}
+```
+
+## Implementation
+
+From `api/patient.js`:
+
+```javascript
+export default async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end()
+    return
+  }
+
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // Get record ID from query parameters
+  const { recordId } = req.query
+
+  if (!recordId) {
+    return res.status(400).json({ error: 'recordId is required' })
+  }
+
+  // Fetch patient data from Airtable
+  const airtableUrl = `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Pacientes/${recordId}`
+  
+  const response = await fetch(airtableUrl, {
+    headers: {
+      'Authorization': `Bearer ${process.env.AIRTABLE_API_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  })
+
+  if (!response.ok) {
+    return res.status(response.status).json({ 
+      error: 'Failed to fetch patient data',
+      details: `Airtable API returned ${response.status}`
+    })
+  }
+
+  const patientData = await response.json()
+  
+  // Extract patient name from the response
+  const patientName = patientData.fields['Nombre Completo']
+  
+  if (!patientName) {
+    return res.status(404).json({ error: 'Patient name not found in record' })
+  }
+
+  // Return patient information
+  res.status(200).json({
+    success: true,
+    patient: {
+      name: patientName,
+      recordId: recordId
+    }
+  })
+}
+```
+
+## Frontend usage
+
+The endpoint is called by `patient-display.js` when the page loads:
+
+```javascript
+async function fetchAndDisplayPatientName() {
+  try {
+    // Get record ID from URL parameters
+    const urlParams = new URLSearchParams(window.location.search)
+    const recordId = urlParams.get('recordId') || urlParams.get('id')
+    
+    if (!recordId) {
+      setFallbackPatientName()
+      return
+    }
+    
+    // Call the API endpoint
+    const apiUrl = `/api/patient?recordId=${encodeURIComponent(recordId)}`
+    const response = await fetch(apiUrl)
+    const data = await response.json()
+    
+    if (response.ok && data.success) {
+      updatePatientHeader(data.patient.name, true)
+    } else {
+      setFallbackPatientName()
+    }
+  } catch (error) {
+    console.error('Error fetching patient data:', error)
+    setFallbackPatientName()
+  }
+}
+```
+
+## URL parameter handling
+
+The application accepts patient identification through URL parameters:
+
+- `?recordId=rec123abc456` (preferred)
+- `?id=rec123abc456` (alternative)
+
+## Patient name storage
+
+Once fetched, the patient name is stored in multiple locations for application-wide access:
+
+```javascript
+function updatePatientHeader(patientName, isLoaded) {
+  const patientNameElement = document.getElementById('patientName')
+  
+  if (patientNameElement) {
+    patientNameElement.textContent = patientName.toUpperCase()
+    
+    // Store globally for access by other scripts
+    window.currentPatientName = patientName.toUpperCase()
+    localStorage.setItem('currentPatientName', patientName.toUpperCase())
+    
+    // Update page title
+    document.title = `Odontograma - ${patientName}`
+  }
+}
+```
+
+## Environment variables
+
+<ParamField path="AIRTABLE_API_KEY" type="string" required>
+  Airtable API key for authentication
+</ParamField>
+
+<ParamField path="AIRTABLE_BASE_ID" type="string" required>
+  Airtable base ID containing the Pacientes table
+</ParamField>
+
+## CORS configuration
+
+The endpoint allows cross-origin requests from any domain:
+
+```javascript
+res.setHeader('Access-Control-Allow-Origin', '*')
+res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')
+res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+```
+
+<Warning>
+  In production, consider restricting CORS to specific domains for better security.
+</Warning>
+
+## Airtable table structure
+
+The endpoint expects an Airtable table named **Pacientes** with at minimum:
+
+- **Nombre Completo** (text field) - Patient's full name
+
+## Error handling
+
+The implementation includes comprehensive error handling:
+
+<Steps>
+  <Step title="Validate request method">
+    Only GET and OPTIONS methods are allowed
+  </Step>
+  
+  <Step title="Check required parameters">
+    Validate that recordId is provided
+  </Step>
+  
+  <Step title="Verify environment variables">
+    Ensure Airtable credentials are configured
+  </Step>
+  
+  <Step title="Handle Airtable API errors">
+    Return appropriate error codes for API failures
+  </Step>
+  
+  <Step title="Validate response data">
+    Check that the patient name field exists in the record
+  </Step>
+</Steps>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Airtable integration" href="/api/airtable-integration">
+    Complete Airtable setup guide
+  </Card>
+  <Card title="Upload endpoint" href="/api/upload-endpoint">
+    Upload odontogram data to Airtable
+  </Card>
+</CardGroup>

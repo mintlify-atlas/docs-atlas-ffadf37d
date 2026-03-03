@@ -434,3 +434,222 @@ a.download = `odontograma_${exportData.fecha}.json`
 a.click()
 URL.revokeObjectURL(url)
 ```
+
+---
+
+## Helper functions
+
+### getTreatmentIcon(code)
+
+Returns the visual symbol/icon for a given treatment code.
+
+#### Signature
+
+```javascript
+function getTreatmentIcon(code)
+```
+
+#### Parameters
+
+<ParamField path="code" type="string" required>
+  Treatment code (e.g., 'CARIES', 'COF', 'MIS')
+</ParamField>
+
+#### Returns
+
+<ResponseField name="icon" type="string">
+  Unicode character or text representing the treatment visually
+</ResponseField>
+
+#### Example
+
+```javascript
+const icon = getTreatmentIcon('CARIES')
+console.log(icon)  // '●'
+
+const bridgeIcon = getTreatmentIcon('BRIDGE')
+console.log(bridgeIcon)  // 'Π'
+```
+
+#### Icon mapping
+
+```javascript
+const icons = {
+  CARIES: '●',
+  CARIES_UNTREATABLE: '●',
+  CFR: '=',
+  AMF: '/A',
+  COF: '/Ob',
+  SIL: '/S',
+  POC: '○',
+  INC: 'I',
+  FMC: '□',
+  IPX: 'IM',
+  NVT: '/Sp',
+  UNE: 'X',
+  RCT: '▼',
+  MIS: 'X',
+  PRE: 'Pd',
+  FRM_ACR: 'P',
+  BRIDGE: 'Π',
+  ORT: '~',
+  RES: 'Δ',
+  REF: '/Rf'
+}
+return icons[code] || '•'
+```
+
+---
+
+### getLayerInfo(layer)
+
+Returns display information for an annotation layer.
+
+#### Signature
+
+```javascript
+function getLayerInfo(layer)
+```
+
+#### Parameters
+
+<ParamField path="layer" type="string" required>
+  Layer identifier ('pre' or 'req')
+</ParamField>
+
+#### Returns
+
+<ResponseField name="layerInfo" type="object">
+  Object containing layer display information
+  
+  **Properties:**
+  - `name` (string): Human-readable layer name
+  - `color` (string): Hex color code for the layer
+  - `badge` (string): Short badge text (e.g., 'PRE', 'REQ')
+</ResponseField>
+
+#### Example
+
+```javascript
+const layerInfo = getLayerInfo('pre')
+console.log(layerInfo)
+// {
+//   name: 'Pre-existente',
+//   color: '#FF0000',
+//   badge: 'PRE'
+// }
+
+const reqLayer = getLayerInfo('req')
+console.log(reqLayer)
+// {
+//   name: 'Requerido',
+//   color: '#0066FF',
+//   badge: 'REQ'
+// }
+```
+
+#### Implementation
+
+```javascript
+function getLayerInfo(layer) {
+  const layerInfo = {
+    pre: { name: 'Pre-existente', color: '#FF0000', badge: 'PRE' },
+    req: { name: 'Requerido', color: '#0066FF', badge: 'REQ' }
+  }
+  return layerInfo[layer] || { name: 'Desconocido', color: '#000', badge: '???' }
+}
+```
+
+---
+
+### getPatientNameFromDOM()
+
+Extracts the patient name from the DOM element or URL parameters.
+
+#### Signature
+
+```javascript
+function getPatientNameFromDOM()
+```
+
+#### Returns
+
+<ResponseField name="patientName" type="string">
+  Patient name string, or 'Paciente' if not found
+</ResponseField>
+
+#### Example
+
+```javascript
+const patientName = getPatientNameFromDOM()
+console.log(patientName)  // 'JUAN PÉREZ'
+```
+
+#### Implementation
+
+```javascript
+function getPatientNameFromDOM() {
+  // First try to get from DOM element
+  const nameElement = document.getElementById('patientName')
+  if (nameElement && nameElement.textContent.trim()) {
+    return nameElement.textContent.trim()
+  }
+  
+  // Fall back to URL parameter
+  const urlParams = new URLSearchParams(window.location.search)
+  const nameFromUrl = urlParams.get('nombre') || urlParams.get('name')
+  if (nameFromUrl) {
+    return nameFromUrl
+  }
+  
+  // Default fallback
+  return 'Paciente'
+}
+```
+
+---
+
+### getCurrentPatientName()
+
+Retrieves the current patient name from global storage or DOM.
+
+#### Signature
+
+```javascript
+function getCurrentPatientName()
+```
+
+#### Returns
+
+<ResponseField name="patientName" type="string">
+  Patient name from window.currentPatientName, localStorage, or DOM
+</ResponseField>
+
+#### Example
+
+```javascript
+const currentName = getCurrentPatientName()
+console.log(currentName)  // 'MARÍA GONZÁLEZ'
+```
+
+#### Implementation
+
+```javascript
+function getCurrentPatientName() {
+  // Try global variable first (set by patient-display.js)
+  if (window.currentPatientName) {
+    return window.currentPatientName
+  }
+  
+  // Try localStorage
+  const storedName = localStorage.getItem('currentPatientName')
+  if (storedName) {
+    return storedName
+  }
+  
+  // Fall back to DOM extraction
+  return getPatientNameFromDOM()
+}
+```
+
+This function is used by export and upload functions to ensure consistent patient identification across all operations.

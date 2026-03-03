@@ -75,6 +75,7 @@
           {
             "group": "Backend Integration",
             "pages": [
+              "api/patient-endpoint",
               "api/upload-endpoint",
               "api/cloudinary-setup",
               "api/airtable-integration"
