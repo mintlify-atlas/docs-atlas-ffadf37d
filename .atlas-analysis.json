@@ -1,0 +1,98 @@
+{
+  "projectType": "frontend",
+  "projectName": "Dental Odontogram",
+  "projectDescription": "Lightweight clinical odontogram web application for dental charting with dual annotation layers, FDI mapping, and professional report generation.",
+  "theme": "palm",
+  "primaryColor": "#0066FF",
+  "lightColor": "#4D94FF",
+  "darkColor": "#0052CC",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guide/interface",
+              "guide/treatments",
+              "guide/annotation-layers",
+              "guide/notes",
+              "guide/export-import"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/dual-layers",
+              "features/fdi-mapping",
+              "features/png-reports",
+              "features/json-export"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "jQuery Plugin",
+            "pages": [
+              "api/plugin-overview",
+              "api/initialization",
+              "api/methods",
+              "api/treatment-codes"
+            ]
+          },
+          {
+            "group": "Core Functions",
+            "pages": [
+              "api/dental-app",
+              "api/shape-classes",
+              "api/geometry"
+            ]
+          },
+          {
+            "group": "Backend Integration",
+            "pages": [
+              "api/upload-endpoint",
+              "api/cloudinary-setup",
+              "api/airtable-integration"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Dual annotation layers (pre-existing and required treatments)",
+    "FDI-based anatomical surface mapping",
+    "Per-tooth clinical notes with auto-save",
+    "JSON export with structured dental data",
+    "Professional A4 PNG report generation",
+    "Backend upload integration (Cloudinary + Airtable)",
+    "Adult and pediatric dentition support",
+    "17+ treatment types with visual symbols"
+  ],
+  "publicApiSurface": [
+    "$.fn.odontogram() - jQuery plugin initializer",
+    "odontogram.setMode(mode) - Set treatment mode",
+    "odontogram.redraw() - Redraw canvas",
+    "odontogram.setGeometry(geom) - Set tooth geometry",
+    "odontogram.getDataURL() - Export canvas image",
+    "loadDentalData() - Load FDI tooth data",
+    "getToothInfo(fdi) - Get tooth information",
+    "getTreatmentName(code) - Get treatment name",
+    "generateProfessionalPNG() - Generate report",
+    "exportOdontogramData() - Export JSON data",
+    "POST /api/upload-odontogram - Upload endpoint"
+  ]
+}
